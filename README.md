@@ -33,13 +33,26 @@ data/
 
 ## Setup
 
+El stack corre **100% via Docker** para que todo el equipo tenga el mismo entorno.
+
+```bash
+bash scripts/setup.sh        # uv sync + docker compose up + modelos + smoke test
+```
+
+O manualmente, paso a paso:
+
 ```bash
 uv sync                       # instala dependencias y crea .venv
 cp .env.example .env          # completa tus credenciales AWS S3
-ollama pull qwen3:4b          # modelo de generación (y: ollama pull nomic-embed-text)
-docker compose up -d          # levanta Qdrant (puerto 6333)
-uv run python -m app.data.download   # descarga los PDFs a data/raw_pdfs
+docker compose up -d          # levanta Qdrant (6333) y Ollama (11434)
+docker compose exec ollama ollama pull qwen3:4b
+docker compose exec ollama ollama pull nomic-embed-text
+uv run python scripts/smoke_stack.py   # valida el stack
+uv run python -m app.data.download     # descarga los PDFs a data/raw_pdfs
 ```
+
+> Si tenés Ollama nativo instalado y corriendo, apagalo (`ollama stop`) para
+> no chocar con el puerto 11434 del contenedor.
 
 ## Estado
 

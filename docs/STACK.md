@@ -30,13 +30,19 @@ Elasticsearch, OpenAI, etc. Requisitos del equipo:
 | Componente | Elección | Versión / modelo |
 |---|---|---|
 | Framework RAG + Agentes | **LangChain** | `langchain` + `langgraph` (agentes) |
-| LLM (generación) | **Ollama** | `qwen3:4b` (Q4, ~2.5 GB) |
-| Embeddings | **Ollama** | `nomic-embed-text:latest` (768d, ~274 MB) |
-| Vector store | **Qdrant via Docker** | imagen oficial `qdrant/qdrant` |
+| LLM (generación) | **Ollama (docker compose)** | `qwen3:4b` (Q4, ~2.5 GB) |
+| Embeddings | **Ollama (docker compose)** | `nomic-embed-text:latest` (768d, ~274 MB) |
+| Vector store | **Qdrant via Docker** | imagen `qdrant/qdrant:v1.15.0` |
 | Búsqueda web | **DuckDuckGo** | `duckduckgo-search` (sin key) |
 | UI | **Chainlit** | `chainlit` |
 | PDF | **PyMuPDF** | `pymupdf` |
 | API | **FastAPI** + `uvicorn` | — |
+
+> **Actualización (2026-09-28):** Ollama corre como servicio de **docker compose**
+> (`ollama/ollama:0.24.0`) para que todo el equipo tenga el mismo entorno.
+> Los modelos se bajan al volumen `ollama_models` con `docker compose exec ollama
+> ollama pull qwen3:4b` (y `nomic-embed-text`). Onboarding completo en
+> `scripts/setup.sh`. Imágenes **pinneadas** (no `:latest`) por reproducibilidad.
 
 Dependencias PyPI a agregar con `uv`:
 
@@ -100,15 +106,14 @@ AWS_SECRET_ACCESS_KEY=...
 ## 8. Setup y validación inicial (smoke test)
 
 ```bash
-# Modelos locales
-ollama pull qwen3:4b
-ollama pull nomic-embed-text
+# Entorno completo (uv + docker compose + modelos + smoke test)
+bash scripts/setup.sh
 
-# Servicios
-docker run -p 6333:6333 qdrant/qdrant     # opcional: vía docker-compose (#12)
-
-# Smoke test (en fase ejecución)
-uv run python scripts/smoke_stack.py       # embed de una frase + respuesta de chat
+# Manualmente:
+docker compose up -d                     # Qdrant (6333) + Ollama (11434)
+docker compose exec ollama ollama pull qwen3:4b
+docker compose exec ollama ollama pull nomic-embed-text
+uv run python scripts/smoke_stack.py     # integración ChatOllama/OllamaEmbeddings/Qdrant
 ```
 
 *Smoke test* verifica integración `ChatOllama` / `OllamaEmbeddings` / `Qdrant` antes
