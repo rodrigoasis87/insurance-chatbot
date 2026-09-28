@@ -1,0 +1,115 @@
+# ADR-001 · Definición del Stack Técnico
+
+- **Estado:** Aceptado
+- **Issue vinculada:** #2 — Definir y validar Stack Técnico definitivo
+- **Fecha:** 2026-09-28
+- **Decisor:** TL (rodrigoasis87)
+
+## 1. Contexto
+
+El chatbot necesita responder sobre pólizas (RAG + retrieval), buscar noticias en
+internet y recombinar cláusulas. El enunciado sugiere LangChain, Haystack, Pinecone,
+Elasticsearch, OpenAI, etc. Requisitos del equipo:
+
+- **100% gratuito y local** (sin API keys de pago).
+- **Sin dependencia de modelos en la nube** (privacidad/costo).
+- Cumplir los entregables obligatorios (Agentes/Tools de LangChain, API, UI, Docker).
+
+## 2. Restricciones del entorno (baseline)
+
+| Recurso | Valor |
+|---|---|
+| SO | WSL2 (kernel 6.6.x) |
+| CPU | AMD Ryzen 7 7730U (16 threads) |
+| RAM | 16 GB |
+| GPU | Integrada (sin NVIDIA); inferencia **CPU-only** |
+| Ollama | v0.24.0 instalado |
+
+## 3. Decisión
+
+| Componente | Elección | Versión / modelo |
+|---|---|---|
+| Framework RAG + Agentes | **LangChain** | `langchain` + `langgraph` (agentes) |
+| LLM (generación) | **Ollama** | `qwen3:4b` (Q4, ~2.5 GB) |
+| Embeddings | **Ollama** | `nomic-embed-text:latest` (768d, ~274 MB) |
+| Vector store | **Qdrant via Docker** | imagen oficial `qdrant/qdrant` |
+| Búsqueda web | **DuckDuckGo** | `duckduckgo-search` (sin key) |
+| UI | **Chainlit** | `chainlit` |
+| PDF | **PyMuPDF** | `pymupdf` |
+| API | **FastAPI** + `uvicorn` | — |
+
+Dependencias PyPI a agregar con `uv`:
+
+```bash
+uv add langchain langchain-ollama langchain-community langgraph
+uv add qdrant-client langchain-qdrant
+uv add chainlit fastapi uvicorn
+uv add duckduckgo-search pymupdf pandas tqdm
+```
+
+## 4. Justificación por componente
+
+- **LangChain:** entregable obligatorio *"Use of LangChain Agents and Tools"* para
+  el ruteo (pólizas / noticias / "no sé"). Los agentes modernos se construyen con
+  LangGraph (`create_react_agent`).
+- **Ollama `qwen3:4b`:** punto medio velocidad/calidad en CPU-only. `qwen3:8b` se
+  descartó por latencia (>15 s en este hardware); `llama3.2:3b` por peor desempeño
+  en español legal. `4b` balancea ambos.
+- **Embeddings `nomic-embed-text`:** pequeño y veloz; con `NomicEmbedText`,
+  `ollama serve` ya disponible. Upgrade medible a `bge-m3` (1024d, multilingüe) si
+  el retrieval no rinde (ver issue #7).
+- **Qdrant (Docker):** vector store real con API REST/gRPC; prepara el entregable
+  de docker-compose (#12). Chroma (embedded) queda como alternativa si hubiera
+  presión de RAM en dev.
+- **DuckDuckGo:** gratis, sin API key. Tavily descartado (tope gratuito y key).
+  Nota: es la **única pieza que requiere internet** (requerimiento del deliverable
+  de noticias).
+- **Chainlit:** UI tipo ChatGPT en Python, conexión directa a la API del chatbot.
+
+## 5. Alternativas evaluadas y descartadas
+
+| Opción | Por qué se descartó |
+|---|---|
+| OpenAI GPT / `text-embedding-3-small` | Requiere API key de pago; contradice "100% gratuito y local" |
+| Azure OpenAI | Setup administrativo adicional, mismo costo |
+| Haystack | Gran framework de ingest, pero el entregable pide LangChain Agents/Tools |
+| Pinecone | Cloud/plan pagado |
+| ElasticSearch | Pesado para el alcance; Qdrant cubre el caso |
+| Tavily (web search) | Tope gratuito y API key; DDG alcanza |
+| Ollama `qwen3:8b` | Latencia alta en CPU-only |
+| Ollama `llama3.2:3b` | Peor calidad en español |
+
+## 6. Consecuencias y trade-offs aceptados
+
+- **Latencia:** respuestas de generación entre ~5–15 s en CPU-only. Aceptable para
+  demo/demo-day; se puede acelerar bajando a un modelo menor o subiendo a GPU.
+- **Calidad:** por debajo de GPT-4o en redacción; mitigable con prompts y retrieval
+  de calidad (issues #4, #7).
+- **Runtime:** requiere `ollama serve` corriendo (WSL) y Docker para Qdrant.
+- **Única conexión externa:** búsqueda de noticias (DDG).
+
+## 7. Variables de entorno
+
+No hay API keys de modelos. Solo las del dataset AWS (para descargar PDFs):
+
+```
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+```
+
+## 8. Setup y validación inicial (smoke test)
+
+```bash
+# Modelos locales
+ollama pull qwen3:4b
+ollama pull nomic-embed-text
+
+# Servicios
+docker run -p 6333:6333 qdrant/qdrant     # opcional: vía docker-compose (#12)
+
+# Smoke test (en fase ejecución)
+uv run python scripts/smoke_stack.py       # embed de una frase + respuesta de chat
+```
+
+*Smoke test* verifica integración `ChatOllama` / `OllamaEmbeddings` / `Qdrant` antes
+de avanzar con las issues #4, #7, #8 y #9.
