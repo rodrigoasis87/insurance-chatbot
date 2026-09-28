@@ -33,10 +33,12 @@ Para mantener la rama principal siempre en estado ejecutable, utilizaremos el fl
 
 ```text
 main (Rama protegida / Producción)
- ├── feature/s3-downloader
- ├── feature/pdf-parsing-and-chunking
- ├── feature/qdrant-vector-store
- └── feature/fastapi-backend
+ ├── feature/dataset-eda            # EDA del dataset                    (app/data)
+ ├── feature/eda-and-pdf-parser     # Extracción de texto + chunking     (app/data)
+ ├── feature/chunking-benchmark     # Benchmark de estrategias de chunk  (app/data)
+ ├── feature/vectordb-setup         # Vector store + indexado            (app/retrieval)
+ ├── feature/web-search-tool        # Búsqueda web + resumen             (app/generation)
+ └── ... nuevas ramas se crean desde cada Issue en GitHub Projects
 ```
 
 ## 3. Flujo de Trabajo Diario (Comandos Git y UV)
@@ -75,7 +77,8 @@ git checkout <nombre-de-la-rama>
 Nota: Si creás la rama manualmente en local, asegurate de seguir la convención de nombres (ej. feature/dataset-eda, feature/chunking-benchmark).
 
 ### C. Desarrollo local y gestión de librerías
-Agregar nuevas dependencias
+
+#### Agregar una nueva dependencia
 Si tu tarea requiere una nueva librería de Python, no uses pip install directamente. Usá uv para que se registre automáticamente en el pyproject.toml y uv.lock:
 
 ```bash
@@ -83,7 +86,7 @@ uv add <nombre-de-la-libreria>
 # Ejemplo: uv add duckduckgo-search
 ```
 
-Guardar cambios (Commits frecuentes)
+#### Guardar cambios (commits frecuentes)
 Realizá commits pequeños y descriptivos siguiendo la convención acordada:
 
 feat(...): Nueva funcionalidad.
@@ -118,6 +121,9 @@ uv sync
 ```
 
 ### E. Finalizar tarea y abrir Pull Request (PR)
+
+Antes de abrir el PR, asegurate de que tu rama esté al día con `main`: `git merge origin/main`. Si GitHub marca la rama como *"out-of-date"*, el merge del PR puede bloquearse (o quedar pendiente en *'Checking for the ability to merge...'*).
+
 1. Subir tu rama a GitHub: 
 ```bash
 git push -u origin <nombre-de-la-rama>
