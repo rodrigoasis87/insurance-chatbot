@@ -37,6 +37,7 @@ data/
 uv sync                       # instala dependencias y crea .venv
 cp .env.example .env          # completa tus credenciales AWS S3
 ollama pull qwen3:4b          # modelo de generación (y: ollama pull nomic-embed-text)
+docker compose up -d          # levanta Qdrant (puerto 6333)
 uv run python -m app.data.download   # descarga los PDFs a data/raw_pdfs
 ```
 
