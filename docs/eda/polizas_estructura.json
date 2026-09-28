@@ -1,0 +1,1818 @@
+[
+  {
+    "poliza": "POL120190177",
+    "articulo": 1,
+    "titulo": "REGLAS APLICABLES AL CONTRATO",
+    "canonico": "reglas",
+    "pagina": 1,
+    "chars": 389
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 2,
+    "titulo": "COBERTURA Y MATERIA ASEGURADA",
+    "canonico": "cobertura",
+    "pagina": 1,
+    "chars": 9228
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 3,
+    "titulo": "LIMITACIONES DE LAS COBERTURAS",
+    "canonico": "limitaciones",
+    "pagina": 3,
+    "chars": 2918
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 4,
+    "titulo": "DEFINICIONES",
+    "canonico": "definiciones",
+    "pagina": 3,
+    "chars": 13207
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 5,
+    "titulo": "EXCLUSIONES",
+    "canonico": "exclusiones",
+    "pagina": 6,
+    "chars": 7385
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 6,
+    "titulo": "OBLIGACIONES DEL ASEGURADO",
+    "canonico": "obligaciones",
+    "pagina": 8,
+    "chars": 1047
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 7,
+    "titulo": "DECLARACIONES DEL CONTRATANTE Y DEL ASEGURADO",
+    "canonico": "declaraciones",
+    "pagina": 8,
+    "chars": 485
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 8,
+    "titulo": "PRIMAS Y EFECTO DEL NO PAGO DE LA PRIMA",
+    "canonico": "primas",
+    "pagina": 8,
+    "chars": 2692
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 9,
+    "titulo": "DENUNCIA DE SINIESTRO",
+    "canonico": "denuncia de siniestro",
+    "pagina": 9,
+    "chars": 3960
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 10,
+    "titulo": "CALCULO DE LOS GASTOS REEMBOLSABLES",
+    "canonico": "calculo de gastos",
+    "pagina": 10,
+    "chars": 1828
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 11,
+    "titulo": "LIQUIDACIÓN DE LOS GASTOS, FORMA DE PAGO Y MONTO MÁXIMO DE GASTOS",
+    "canonico": "liquidacion de gastos",
+    "pagina": 10,
+    "chars": 4304
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 12,
+    "titulo": "APLICACIÓN DEL DEDUCIBLE",
+    "canonico": "deducible",
+    "pagina": 11,
+    "chars": 1518
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 13,
+    "titulo": "VIGENCIA Y DURACIÓN DEL CONTRATO DE SEGURO",
+    "canonico": "vigencia",
+    "pagina": 11,
+    "chars": 704
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 14,
+    "titulo": "INCORPORACIÓN DE ASEGURADOS E INICIO DE LA VIGENCIA DE LA COBERTURA",
+    "canonico": "cobertura",
+    "pagina": 12,
+    "chars": 1250
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 15,
+    "titulo": "TERMINACIÓN DEL CONTRATO",
+    "canonico": "terminacion",
+    "pagina": 12,
+    "chars": 2098
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 16,
+    "titulo": "AJUSTE DE LA PRIMA",
+    "canonico": "ajuste de la prima",
+    "pagina": 12,
+    "chars": 705
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 17,
+    "titulo": "MONEDA O UNIDAD DEL CONTRATO",
+    "canonico": "unidad del contrato",
+    "pagina": 13,
+    "chars": 1436
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 18,
+    "titulo": "REHABILITACIÓN DE LA PÓLIZA",
+    "canonico": "rehabilitacion",
+    "pagina": 13,
+    "chars": 1012
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 19,
+    "titulo": "CONTRIBUCIONES E IMPUESTOS",
+    "canonico": "impuestos",
+    "pagina": 13,
+    "chars": 237
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 20,
+    "titulo": "COMUNICACIÓN ENTRE LAS PARTES",
+    "canonico": "comunicaciones",
+    "pagina": 13,
+    "chars": 1347
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 21,
+    "titulo": "SOLUCIÓN DE CONTROVERSIAS",
+    "canonico": "controversias",
+    "pagina": 14,
+    "chars": 979
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 22,
+    "titulo": "CLÁUSULAS ADICIONALES",
+    "canonico": "clausulas adicionales",
+    "pagina": 14,
+    "chars": 275
+  },
+  {
+    "poliza": "POL120190177",
+    "articulo": 23,
+    "titulo": "DOMICILIO",
+    "canonico": "domicilio",
+    "pagina": 14,
+    "chars": 221
+  },
+  {
+    "poliza": "POL320130223",
+    "articulo": 1,
+    "titulo": "REGLAS APLICABLES AL CONTRATO",
+    "canonico": "reglas",
+    "pagina": 1,
+    "chars": 410
+  },
+  {
+    "poliza": "POL320130223",
+    "articulo": 2,
+    "titulo": "COBERTURA",
+    "canonico": "cobertura",
+    "pagina": 1,
+    "chars": 17403
+  },
+  {
+    "poliza": "POL320130223",
+    "articulo": 3,
+    "titulo": "DEFINICIONES",
+    "canonico": "definiciones",
+    "pagina": 17,
+    "chars": 10942
+  },
+  {
+    "poliza": "POL320130223",
+    "articulo": 4,
+    "titulo": "MONTO MÁXIMO DE REEMBOLSO",
+    "canonico": "monto maximo de reembolso",
+    "pagina": 24,
+    "chars": 299
+  },
+  {
+    "poliza": "POL320130223",
+    "articulo": 5,
+    "titulo": "DUPLICACIÓN DE BENEFICIOS",
+    "canonico": "duplicacion de beneficios",
+    "pagina": 25,
+    "chars": 1199
+  },
+  {
+    "poliza": "POL320130223",
+    "articulo": 6,
+    "titulo": "EXCLUSIONES",
+    "canonico": "exclusiones",
+    "pagina": 26,
+    "chars": 7908
+  },
+  {
+    "poliza": "POL320130223",
+    "articulo": 7,
+    "titulo": "RIESGOS CUBIERTOS BAJO ESTIPULACIÓN EXPRESA",
+    "canonico": "riesgos cubiertos",
+    "pagina": 33,
+    "chars": 452
+  },
+  {
+    "poliza": "POL320130223",
+    "articulo": 8,
+    "titulo": "OBLIGACIONES DEL ASEGURADO",
+    "canonico": "obligaciones",
+    "pagina": 33,
+    "chars": 163
+  },
+  {
+    "poliza": "POL320130223",
+    "articulo": 9,
+    "titulo": "DECLARACIONES DEL ASEGURADO",
+    "canonico": "declaraciones",
+    "pagina": 34,
+    "chars": 391
+  },
+  {
+    "poliza": "POL320130223",
+    "articulo": 10,
+    "titulo": "BENEFICIARIOS",
+    "canonico": "beneficiarios",
+    "pagina": 35,
+    "chars": 210
+  },
+  {
+    "poliza": "POL320130223",
+    "articulo": 11,
+    "titulo": "PRIMAS Y EFECTO DEL NO PAGO DE LAS PRIMAS",
+    "canonico": "primas",
+    "pagina": 35,
+    "chars": 814
+  },
+  {
+    "poliza": "POL320130223",
+    "articulo": 12,
+    "titulo": "DENUNCIO DE SINIESTRO",
+    "canonico": "denuncia de siniestro",
+    "pagina": 36,
+    "chars": 3312
+  },
+  {
+    "poliza": "POL320130223",
+    "articulo": 13,
+    "titulo": "VIGENCIA Y TERMINACIÓN DE DE LA PÓLIZA",
+    "canonico": "vigencia",
+    "pagina": 39,
+    "chars": 3705
+  },
+  {
+    "poliza": "POL320130223",
+    "articulo": 14,
+    "titulo": "INCORPORACIÓN DE NUEVOS ASEGURADOS",
+    "canonico": "incorporacion",
+    "pagina": 42,
+    "chars": 1992
+  },
+  {
+    "poliza": "POL320130223",
+    "articulo": 15,
+    "titulo": "MONEDA O UNIDAD DE LA PÓLIZA",
+    "canonico": "unidad del contrato",
+    "pagina": 44,
+    "chars": 645
+  },
+  {
+    "poliza": "POL320130223",
+    "articulo": 16,
+    "titulo": "COMUNICACIONES",
+    "canonico": "comunicaciones",
+    "pagina": 44,
+    "chars": 1328
+  },
+  {
+    "poliza": "POL320130223",
+    "articulo": 17,
+    "titulo": "SOLUCIÓN DE CONTROVERSIAS",
+    "canonico": "controversias",
+    "pagina": 45,
+    "chars": 1231
+  },
+  {
+    "poliza": "POL320130223",
+    "articulo": 18,
+    "titulo": "DOMICILIO",
+    "canonico": "domicilio",
+    "pagina": 46,
+    "chars": 239
+  },
+  {
+    "poliza": "POL320130223",
+    "articulo": 19,
+    "titulo": "CLÁUSULAS ADICIONALES",
+    "canonico": "clausulas adicionales",
+    "pagina": 46,
+    "chars": 481
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 1,
+    "titulo": "REGLAS APLICABLES AL CONTRATO",
+    "canonico": "reglas",
+    "pagina": 1,
+    "chars": 395
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 2,
+    "titulo": "COBERTURA Y MATERIA ASEGURADA",
+    "canonico": "cobertura",
+    "pagina": 1,
+    "chars": 10785
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 3,
+    "titulo": "LIMITACIONES DE LAS COBERTURAS",
+    "canonico": "limitaciones",
+    "pagina": 5,
+    "chars": 2854
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 4,
+    "titulo": "DEFINICIONES",
+    "canonico": "definiciones",
+    "pagina": 6,
+    "chars": 13606
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 5,
+    "titulo": "EXCLUSIONES",
+    "canonico": "exclusiones",
+    "pagina": 11,
+    "chars": 9123
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 6,
+    "titulo": "OBLIGACIONES DEL ASEGURADO",
+    "canonico": "obligaciones",
+    "pagina": 15,
+    "chars": 1013
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 7,
+    "titulo": "DECLARACIONES DEL CONTRATANTE Y DEL ASEGURADO",
+    "canonico": "declaraciones",
+    "pagina": 16,
+    "chars": 489
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 8,
+    "titulo": "PRIMAS Y EFECTO DEL NO PAGO DE LA PRIMA",
+    "canonico": "primas",
+    "pagina": 16,
+    "chars": 2770
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 9,
+    "titulo": "DENUNCIA DE SINIESTROS",
+    "canonico": "denuncia de siniestro",
+    "pagina": 17,
+    "chars": 3919
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 10,
+    "titulo": "CALCULO DE LOS GASTOS REEMBOLSABLES",
+    "canonico": "calculo de gastos",
+    "pagina": 19,
+    "chars": 1847
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 11,
+    "titulo": "LIQUIDACION DE LOS GASTOS, FORMA DE PAGO Y MONTO MAXIMO DE GASTOS",
+    "canonico": "liquidacion de gastos",
+    "pagina": 19,
+    "chars": 4327
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 12,
+    "titulo": "APLICACION DEL DEDUCIBLE",
+    "canonico": "deducible",
+    "pagina": 21,
+    "chars": 1545
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 13,
+    "titulo": "VIGENCIA Y DURACIÓN DEL CONTRATO DE SEGURO",
+    "canonico": "vigencia",
+    "pagina": 22,
+    "chars": 708
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 14,
+    "titulo": "INCORPORACIÓN DE ASEGURADOS E INICIO DE LA VIGENCIA DE LA COBERTURA",
+    "canonico": "cobertura",
+    "pagina": 22,
+    "chars": 1283
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 15,
+    "titulo": "TERMINACIÓN DEL CONTRATO",
+    "canonico": "terminacion",
+    "pagina": 22,
+    "chars": 2165
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 16,
+    "titulo": "AJUSTE DE LA PRIMA",
+    "canonico": "ajuste de la prima",
+    "pagina": 24,
+    "chars": 709
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 17,
+    "titulo": "MONEDA O UNIDAD DEL CONTRATO",
+    "canonico": "unidad del contrato",
+    "pagina": 24,
+    "chars": 1409
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 18,
+    "titulo": "REHABILITACION DE LA PÓLIZA",
+    "canonico": "rehabilitacion",
+    "pagina": 24,
+    "chars": 1021
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 19,
+    "titulo": "CONTRIBUCIONES E IMPUESTOS",
+    "canonico": "impuestos",
+    "pagina": 25,
+    "chars": 239
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 20,
+    "titulo": "COMUNICACIÓN ENTRE LAS PARTES",
+    "canonico": "comunicaciones",
+    "pagina": 25,
+    "chars": 1354
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 21,
+    "titulo": "SOLUCIÓN DE CONTROVERSIAS",
+    "canonico": "controversias",
+    "pagina": 25,
+    "chars": 969
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 22,
+    "titulo": "CLÁUSULAS ADICIONALES",
+    "canonico": "clausulas adicionales",
+    "pagina": 26,
+    "chars": 285
+  },
+  {
+    "poliza": "POL320150503",
+    "articulo": 23,
+    "titulo": "DOMICILIO",
+    "canonico": "domicilio",
+    "pagina": 26,
+    "chars": 225
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 1,
+    "titulo": "REGLAS APLICABLES AL CONTRATO",
+    "canonico": "reglas",
+    "pagina": 1,
+    "chars": 397
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 2,
+    "titulo": "COBERTURA Y MATERIA ASEGURADA",
+    "canonico": "cobertura",
+    "pagina": 1,
+    "chars": 6671
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 3,
+    "titulo": "LIMITACIONES DE LAS COBERTURAS",
+    "canonico": "limitaciones",
+    "pagina": 3,
+    "chars": 3468
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 4,
+    "titulo": "DEFINICIONES",
+    "canonico": "definiciones",
+    "pagina": 4,
+    "chars": 13743
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 5,
+    "titulo": "EXCLUSIONES",
+    "canonico": "exclusiones",
+    "pagina": 10,
+    "chars": 6752
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 6,
+    "titulo": "OBLIGACIONES DEL ASEGURADO",
+    "canonico": "obligaciones",
+    "pagina": 13,
+    "chars": 1065
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 7,
+    "titulo": "DECLARACIONES DEL CONTRATANTE Y DEL ASEGURADO",
+    "canonico": "declaraciones",
+    "pagina": 14,
+    "chars": 491
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 8,
+    "titulo": "PRIMAS Y EFECTO DEL NO PAGO DE LA PRIMA",
+    "canonico": "primas",
+    "pagina": 14,
+    "chars": 2772
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 9,
+    "titulo": "DENUNCIA DE SINIESTROS",
+    "canonico": "denuncia de siniestro",
+    "pagina": 15,
+    "chars": 3921
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 10,
+    "titulo": "CALCULO DE LOS GASTOS REEMBOLSABLES",
+    "canonico": "calculo de gastos",
+    "pagina": 17,
+    "chars": 1849
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 11,
+    "titulo": "LIQUIDACION DE LOS GASTOS, FORMA DE PAGO Y MONTO MAXIMO DE GASTOS",
+    "canonico": "liquidacion de gastos",
+    "pagina": 17,
+    "chars": 4945
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 12,
+    "titulo": "APLICACION DEL DEDUCIBLE",
+    "canonico": "deducible",
+    "pagina": 19,
+    "chars": 1818
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 13,
+    "titulo": "VIGENCIA Y DURACIÓN DEL CONTRATO DE SEGURO",
+    "canonico": "vigencia",
+    "pagina": 20,
+    "chars": 710
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 14,
+    "titulo": "INCORPORACIÓN DE ASEGURADOS E INICIO DE LA VIGENCIA DE LA COBERTURA",
+    "canonico": "cobertura",
+    "pagina": 20,
+    "chars": 1285
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 15,
+    "titulo": "TERMINACIÓN DEL CONTRATO",
+    "canonico": "terminacion",
+    "pagina": 21,
+    "chars": 2211
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 16,
+    "titulo": "AJUSTE DE LA PRIMA",
+    "canonico": "ajuste de la prima",
+    "pagina": 22,
+    "chars": 711
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 17,
+    "titulo": "MONEDA O UNIDAD DEL CONTRATO",
+    "canonico": "unidad del contrato",
+    "pagina": 22,
+    "chars": 1411
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 18,
+    "titulo": "REHABILITACION DE LA PÓLIZA",
+    "canonico": "rehabilitacion",
+    "pagina": 23,
+    "chars": 1023
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 19,
+    "titulo": "CONTRIBUCIONES E IMPUESTOS",
+    "canonico": "impuestos",
+    "pagina": 23,
+    "chars": 241
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 20,
+    "titulo": "COMUNICACIÓN ENTRE LAS PARTES",
+    "canonico": "comunicaciones",
+    "pagina": 24,
+    "chars": 1354
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 21,
+    "titulo": "SOLUCIÓN DE CONTROVERSIAS",
+    "canonico": "controversias",
+    "pagina": 24,
+    "chars": 971
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 22,
+    "titulo": "CLÁUSULAS ADICIONALES",
+    "canonico": "clausulas adicionales",
+    "pagina": 24,
+    "chars": 287
+  },
+  {
+    "poliza": "POL320180100",
+    "articulo": 23,
+    "titulo": "DOMICILIO",
+    "canonico": "domicilio",
+    "pagina": 25,
+    "chars": 227
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 1,
+    "titulo": "REGLAS APLICABLES AL CONTRATO",
+    "canonico": "reglas",
+    "pagina": 1,
+    "chars": 386
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 2,
+    "titulo": "COBERTURA",
+    "canonico": "cobertura",
+    "pagina": 1,
+    "chars": 4160
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 3,
+    "titulo": "DEFINICIONES",
+    "canonico": "definiciones",
+    "pagina": 3,
+    "chars": 5717
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 4,
+    "titulo": "EXCLUSIONES",
+    "canonico": "exclusiones",
+    "pagina": 4,
+    "chars": 5538
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 5,
+    "titulo": "CARENCIA",
+    "canonico": "carencia",
+    "pagina": 7,
+    "chars": 302
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 6,
+    "titulo": "OBLIGACIONES DEL ASEGURADO",
+    "canonico": "obligaciones",
+    "pagina": 7,
+    "chars": 147
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 7,
+    "titulo": "DECLARACIONES DEL ASEGURADO",
+    "canonico": "declaraciones",
+    "pagina": 7,
+    "chars": 257
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 8,
+    "titulo": "PRIMAS Y EFECTOS DEL NO PAGO DE LAS PRIMAS",
+    "canonico": "primas",
+    "pagina": 7,
+    "chars": 768
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 9,
+    "titulo": "BENEFICIARIOS",
+    "canonico": "beneficiarios",
+    "pagina": 8,
+    "chars": 591
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 10,
+    "titulo": "DENUNCIA DE SINIESTROS",
+    "canonico": "denuncia de siniestro",
+    "pagina": 8,
+    "chars": 2919
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 11,
+    "titulo": "VIGENCIA Y TERMINACIÓN",
+    "canonico": "vigencia",
+    "pagina": 9,
+    "chars": 1681
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 12,
+    "titulo": "COMUNICACIÓN ENTRE LAS PARTES",
+    "canonico": "comunicaciones",
+    "pagina": 9,
+    "chars": 1323
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 13,
+    "titulo": "SOLUCIÓN DE CONTROVERSIAS",
+    "canonico": "controversias",
+    "pagina": 9,
+    "chars": 1191
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 14,
+    "titulo": "CLAUSULAS ADICIONALES",
+    "canonico": "clausulas adicionales",
+    "pagina": 10,
+    "chars": 277
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 15,
+    "titulo": "DOMICILIO",
+    "canonico": "domicilio",
+    "pagina": 10,
+    "chars": 331
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 1,
+    "titulo": "COBERTURA",
+    "canonico": "cobertura",
+    "pagina": 11,
+    "chars": 1096
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 2,
+    "titulo": "EXCLUSIONES",
+    "canonico": "exclusiones",
+    "pagina": 11,
+    "chars": 3643
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 3,
+    "titulo": "CARENCIA",
+    "canonico": "carencia",
+    "pagina": 13,
+    "chars": 722
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 4,
+    "titulo": "BENEFICIARIOS",
+    "canonico": "beneficiarios",
+    "pagina": 13,
+    "chars": 225
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 5,
+    "titulo": "DENUNCIA DE SINIESTRO",
+    "canonico": "denuncia de siniestro",
+    "pagina": 14,
+    "chars": 1143
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 6,
+    "titulo": "CLÁUSULAS APLICABLES",
+    "canonico": "Cláusulas Aplicables",
+    "pagina": 15,
+    "chars": 295
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 1,
+    "titulo": "REGLAS APLICABLES AL CONTRATO",
+    "canonico": "reglas",
+    "pagina": 16,
+    "chars": 410
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 2,
+    "titulo": "COBERTURA",
+    "canonico": "cobertura",
+    "pagina": 16,
+    "chars": 17403
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 3,
+    "titulo": "DEFINICIONES",
+    "canonico": "definiciones",
+    "pagina": 32,
+    "chars": 10942
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 4,
+    "titulo": "MONTO MÁXIMO DE REEMBOLSO",
+    "canonico": "monto maximo de reembolso",
+    "pagina": 39,
+    "chars": 299
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 5,
+    "titulo": "DUPLICACIÓN DE BENEFICIOS",
+    "canonico": "duplicacion de beneficios",
+    "pagina": 40,
+    "chars": 1199
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 6,
+    "titulo": "EXCLUSIONES",
+    "canonico": "exclusiones",
+    "pagina": 41,
+    "chars": 7908
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 7,
+    "titulo": "RIESGOS CUBIERTOS BAJO ESTIPULACIÓN EXPRESA",
+    "canonico": "riesgos cubiertos",
+    "pagina": 48,
+    "chars": 452
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 8,
+    "titulo": "OBLIGACIONES DEL ASEGURADO",
+    "canonico": "obligaciones",
+    "pagina": 48,
+    "chars": 163
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 9,
+    "titulo": "DECLARACIONES DEL ASEGURADO",
+    "canonico": "declaraciones",
+    "pagina": 49,
+    "chars": 391
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 10,
+    "titulo": "BENEFICIARIOS",
+    "canonico": "beneficiarios",
+    "pagina": 50,
+    "chars": 210
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 11,
+    "titulo": "PRIMAS Y EFECTO DEL NO PAGO DE LAS PRIMAS",
+    "canonico": "primas",
+    "pagina": 50,
+    "chars": 814
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 12,
+    "titulo": "DENUNCIO DE SINIESTRO",
+    "canonico": "denuncia de siniestro",
+    "pagina": 51,
+    "chars": 3312
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 13,
+    "titulo": "VIGENCIA Y TERMINACIÓN DE DE LA PÓLIZA",
+    "canonico": "vigencia",
+    "pagina": 54,
+    "chars": 3705
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 14,
+    "titulo": "INCORPORACIÓN DE NUEVOS ASEGURADOS",
+    "canonico": "incorporacion",
+    "pagina": 57,
+    "chars": 1992
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 15,
+    "titulo": "MONEDA O UNIDAD DE LA PÓLIZA",
+    "canonico": "unidad del contrato",
+    "pagina": 59,
+    "chars": 645
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 16,
+    "titulo": "COMUNICACIONES",
+    "canonico": "comunicaciones",
+    "pagina": 59,
+    "chars": 1328
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 17,
+    "titulo": "SOLUCIÓN DE CONTROVERSIAS",
+    "canonico": "controversias",
+    "pagina": 60,
+    "chars": 1231
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 18,
+    "titulo": "DOMICILIO",
+    "canonico": "domicilio",
+    "pagina": 61,
+    "chars": 239
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 19,
+    "titulo": "CLÁUSULAS ADICIONALES",
+    "canonico": "clausulas adicionales",
+    "pagina": 61,
+    "chars": 764
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 1,
+    "titulo": "COBERTURA",
+    "canonico": "cobertura",
+    "pagina": 63,
+    "chars": 1096
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 2,
+    "titulo": "EXCLUSIONES",
+    "canonico": "exclusiones",
+    "pagina": 63,
+    "chars": 3647
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 3,
+    "titulo": "CARENCIA",
+    "canonico": "carencia",
+    "pagina": 65,
+    "chars": 722
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 4,
+    "titulo": "BENEFICIARIOS",
+    "canonico": "beneficiarios",
+    "pagina": 66,
+    "chars": 231
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 5,
+    "titulo": "DENUNCIA DE SINIESTROS",
+    "canonico": "denuncia de siniestro",
+    "pagina": 66,
+    "chars": 902
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 6,
+    "titulo": "CLÁUSULAS APLICABLES",
+    "canonico": "Cláusulas Aplicables",
+    "pagina": 67,
+    "chars": 522
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 1,
+    "titulo": "COBERTURA Y MATERIA ASEGURADA",
+    "canonico": "cobertura",
+    "pagina": 68,
+    "chars": 1246
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 2,
+    "titulo": "DEFINICIONES",
+    "canonico": "definiciones",
+    "pagina": 68,
+    "chars": 2534
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 3,
+    "titulo": "EXCLUSIONES",
+    "canonico": "exclusiones",
+    "pagina": 69,
+    "chars": 4813
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 4,
+    "titulo": "DENUNCIA DE SINIESTROS",
+    "canonico": "denuncia de siniestro",
+    "pagina": 71,
+    "chars": 3774
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 5,
+    "titulo": "TERMINACIÓN",
+    "canonico": "terminacion",
+    "pagina": 72,
+    "chars": 552
+  },
+  {
+    "poliza": "POL320190074",
+    "articulo": 6,
+    "titulo": "CLÁUSULAS APLICABLES",
+    "canonico": "Cláusulas Aplicables",
+    "pagina": 72,
+    "chars": 180
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 1,
+    "titulo": "REGLAS APLICABLES AL CONTRATO",
+    "canonico": "reglas",
+    "pagina": 1,
+    "chars": 389
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 2,
+    "titulo": "COBERTURA",
+    "canonico": "cobertura",
+    "pagina": 1,
+    "chars": 3743
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 3,
+    "titulo": "DESCRIPCIÓN DE LAS COBERTURAS",
+    "canonico": "descripcion de coberturas",
+    "pagina": 2,
+    "chars": 8382
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 4,
+    "titulo": "LIMITACIONES DE LAS COBERTURAS",
+    "canonico": "limitaciones",
+    "pagina": 4,
+    "chars": 2204
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 5,
+    "titulo": "DEFINICIONES",
+    "canonico": "definiciones",
+    "pagina": 5,
+    "chars": 11661
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 6,
+    "titulo": "EXCLUSIONES",
+    "canonico": "exclusiones",
+    "pagina": 8,
+    "chars": 8569
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 7,
+    "titulo": "OBLIGACIONES DEL ASEGURADO",
+    "canonico": "obligaciones",
+    "pagina": 10,
+    "chars": 1010
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 8,
+    "titulo": "DECLARACIONES DEL ASEGURADO E INDISPUTABILIDAD",
+    "canonico": "declaraciones",
+    "pagina": 11,
+    "chars": 2487
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 9,
+    "titulo": "VIGENCIA Y DURACION DEL CONTRATO DE SEGURO",
+    "canonico": "vigencia",
+    "pagina": 11,
+    "chars": 1141
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 10,
+    "titulo": "PRIMA Y EFECTOS DEL NO PAGO DE LA PRIMA",
+    "canonico": "primas",
+    "pagina": 12,
+    "chars": 2779
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 11,
+    "titulo": "DENUNCIA DE SINIESTRO",
+    "canonico": "denuncia de siniestro",
+    "pagina": 12,
+    "chars": 3917
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 12,
+    "titulo": "CÁLCULO DE LOS GASTOS REEMBOLSABLES",
+    "canonico": "calculo de gastos",
+    "pagina": 13,
+    "chars": 1686
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 13,
+    "titulo": "TÉRMINO DEL CONTRATO DE SEGURO",
+    "canonico": "terminacion",
+    "pagina": 14,
+    "chars": 2603
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 14,
+    "titulo": "IMPUESTOS",
+    "canonico": "impuestos",
+    "pagina": 15,
+    "chars": 500
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 15,
+    "titulo": "MONEDA O UNIDAD DEL CONTRATO DE SEGURO",
+    "canonico": "unidad del contrato",
+    "pagina": 15,
+    "chars": 1076
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 16,
+    "titulo": "COMUNICACION ENTRE LAS PARTES",
+    "canonico": "comunicaciones",
+    "pagina": 15,
+    "chars": 1327
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 17,
+    "titulo": "SOLUCION DE CONTROVERSIAS",
+    "canonico": "controversias",
+    "pagina": 15,
+    "chars": 1462
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 18,
+    "titulo": "DERECHO DE RETRACTO",
+    "canonico": "retracto",
+    "pagina": 16,
+    "chars": 585
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 19,
+    "titulo": "DOMICILIO",
+    "canonico": "domicilio",
+    "pagina": 16,
+    "chars": 221
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 20,
+    "titulo": "CLÁUSULAS ADICIONALES",
+    "canonico": "clausulas adicionales",
+    "pagina": 16,
+    "chars": 552
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 1,
+    "titulo": "REGLAS APLICABLES AL CONTRATO",
+    "canonico": "reglas",
+    "pagina": 17,
+    "chars": 387
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 2,
+    "titulo": "COBERTURA Y MATERIA ASEGURADA",
+    "canonico": "cobertura",
+    "pagina": 17,
+    "chars": 5693
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 3,
+    "titulo": "LIMITACIONES DE LA COBERTURA",
+    "canonico": "limitaciones",
+    "pagina": 18,
+    "chars": 262
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 4,
+    "titulo": "EXCLUSIONES",
+    "canonico": "exclusiones",
+    "pagina": 19,
+    "chars": 1964
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 5,
+    "titulo": "OBLIGACIONES DEL ASEGURADO",
+    "canonico": "obligaciones",
+    "pagina": 19,
+    "chars": 1014
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 6,
+    "titulo": "DECLARACIONES DEL ASEGURADO E INDISPUTABILIDAD",
+    "canonico": "declaraciones",
+    "pagina": 20,
+    "chars": 2485
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 7,
+    "titulo": "VIGENCIA Y DURACION DEL CONTRATO DE SEGURO",
+    "canonico": "vigencia",
+    "pagina": 20,
+    "chars": 1140
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 8,
+    "titulo": "PRIMA Y EFECTOS DEL NO PAGO DE LA PRIMA",
+    "canonico": "primas",
+    "pagina": 20,
+    "chars": 2779
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 9,
+    "titulo": "DENUNCIA DE SINIESTRO",
+    "canonico": "denuncia de siniestro",
+    "pagina": 21,
+    "chars": 867
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 10,
+    "titulo": "REQUISITOS PARA EL PAGO DE SINIESTRO",
+    "canonico": "denuncia de siniestro",
+    "pagina": 22,
+    "chars": 1804
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 11,
+    "titulo": "PAGO DE SINIESTRO",
+    "canonico": "denuncia de siniestro",
+    "pagina": 22,
+    "chars": 881
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 12,
+    "titulo": "TÉRMINO DEL CONTRATO DE SEGURO",
+    "canonico": "terminacion",
+    "pagina": 22,
+    "chars": 3278
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 13,
+    "titulo": "REHABILITACION DEL CONTRATO DE SEGURO",
+    "canonico": "rehabilitacion",
+    "pagina": 23,
+    "chars": 783
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 14,
+    "titulo": "IMPUESTOS",
+    "canonico": "impuestos",
+    "pagina": 24,
+    "chars": 498
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 15,
+    "titulo": "MONEDA O UNIDAD DEL CONTRATO DE SEGURO",
+    "canonico": "unidad del contrato",
+    "pagina": 24,
+    "chars": 1076
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 16,
+    "titulo": "COMUNICACION ENTRE LAS PARTES",
+    "canonico": "comunicaciones",
+    "pagina": 24,
+    "chars": 492
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 17,
+    "titulo": "SOLUCION DE CONTROVERSIAS",
+    "canonico": "controversias",
+    "pagina": 24,
+    "chars": 1400
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 18,
+    "titulo": "DERECHO DE RETRACTO",
+    "canonico": "retracto",
+    "pagina": 25,
+    "chars": 583
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 19,
+    "titulo": "DOMICILIO",
+    "canonico": "domicilio",
+    "pagina": 25,
+    "chars": 219
+  },
+  {
+    "poliza": "POL320200071",
+    "articulo": 20,
+    "titulo": "DEFINICIONES",
+    "canonico": "definiciones",
+    "pagina": 25,
+    "chars": 1626
+  },
+  {
+    "poliza": "POL320200214",
+    "articulo": 1,
+    "titulo": "REGLAS APLICABLES AL CONTRATO",
+    "canonico": "reglas",
+    "pagina": 1,
+    "chars": 758
+  },
+  {
+    "poliza": "POL320200214",
+    "articulo": 2,
+    "titulo": "COBERTURA",
+    "canonico": "cobertura",
+    "pagina": 1,
+    "chars": 1138
+  },
+  {
+    "poliza": "POL320200214",
+    "articulo": 3,
+    "titulo": "DEFINICIONES",
+    "canonico": "definiciones",
+    "pagina": 2,
+    "chars": 25715
+  },
+  {
+    "poliza": "POL320200214",
+    "articulo": 4,
+    "titulo": "EXCLUSIONES",
+    "canonico": "exclusiones",
+    "pagina": 16,
+    "chars": 16550
+  },
+  {
+    "poliza": "POL320200214",
+    "articulo": 5,
+    "titulo": "DEDUCIBLE",
+    "canonico": "deducible",
+    "pagina": 24,
+    "chars": 2064
+  },
+  {
+    "poliza": "POL320200214",
+    "articulo": 6,
+    "titulo": "COPAGO",
+    "canonico": "copago",
+    "pagina": 25,
+    "chars": 2651
+  },
+  {
+    "poliza": "POL320200214",
+    "articulo": 7,
+    "titulo": "OBLIGACIONES DEL ASEGURADO",
+    "canonico": "obligaciones",
+    "pagina": 26,
+    "chars": 1146
+  },
+  {
+    "poliza": "POL320200214",
+    "articulo": 8,
+    "titulo": "DECLARACIONES DEL ASEGURADO",
+    "canonico": "declaraciones",
+    "pagina": 27,
+    "chars": 3314
+  },
+  {
+    "poliza": "POL320200214",
+    "articulo": 9,
+    "titulo": "AGRAVACIÓN DEL RIESGO",
+    "canonico": "agravacion del riesgo",
+    "pagina": 29,
+    "chars": 603
+  },
+  {
+    "poliza": "POL320200214",
+    "articulo": 10,
+    "titulo": "PRIMAS Y EFECTOS DEL NO PAGO DE LAS PRIMAS",
+    "canonico": "primas",
+    "pagina": 29,
+    "chars": 2312
+  },
+  {
+    "poliza": "POL320200214",
+    "articulo": 11,
+    "titulo": "OTROS SEGUROS O COBERTURAS VIGENTES",
+    "canonico": "otros seguros",
+    "pagina": 31,
+    "chars": 1694
+  },
+  {
+    "poliza": "POL320200214",
+    "articulo": 12,
+    "titulo": "DENUNCIA DE SINIESTROS",
+    "canonico": "denuncia de siniestro",
+    "pagina": 31,
+    "chars": 5601
+  },
+  {
+    "poliza": "POL320200214",
+    "articulo": 13,
+    "titulo": "VIGENCIA",
+    "canonico": "vigencia",
+    "pagina": 35,
+    "chars": 1702
+  },
+  {
+    "poliza": "POL320200214",
+    "articulo": 14,
+    "titulo": "TERMINACIÓN",
+    "canonico": "terminacion",
+    "pagina": 36,
+    "chars": 4110
+  },
+  {
+    "poliza": "POL320200214",
+    "articulo": 15,
+    "titulo": "MODIFICACIONES A LA PÓLIZA",
+    "canonico": "modificaciones",
+    "pagina": 37,
+    "chars": 3474
+  },
+  {
+    "poliza": "POL320200214",
+    "articulo": 16,
+    "titulo": "PAÍS DE RESIDENCIA",
+    "canonico": "pais de residencia",
+    "pagina": 39,
+    "chars": 816
+  },
+  {
+    "poliza": "POL320200214",
+    "articulo": 17,
+    "titulo": "COMUNICACIÓN ENTRE LAS PARTES",
+    "canonico": "comunicaciones",
+    "pagina": 40,
+    "chars": 1319
+  },
+  {
+    "poliza": "POL320200214",
+    "articulo": 18,
+    "titulo": "SOLUCIÓN DE CONTROVERSIAS",
+    "canonico": "controversias",
+    "pagina": 40,
+    "chars": 1874
+  },
+  {
+    "poliza": "POL320200214",
+    "articulo": 19,
+    "titulo": "CLÁUSULAS ADICIONALES",
+    "canonico": "clausulas adicionales",
+    "pagina": 41,
+    "chars": 281
+  },
+  {
+    "poliza": "POL320200214",
+    "articulo": 20,
+    "titulo": "DOMICILIO",
+    "canonico": "domicilio",
+    "pagina": 41,
+    "chars": 2224
+  },
+  {
+    "poliza": "POL320210063",
+    "articulo": 1,
+    "titulo": "Reglas",
+    "canonico": "reglas",
+    "pagina": 1,
+    "chars": 1726
+  },
+  {
+    "poliza": "POL320210063",
+    "articulo": 4,
+    "titulo": "Cobertura",
+    "canonico": "cobertura",
+    "pagina": 1,
+    "chars": 2030
+  },
+  {
+    "poliza": "POL320210063",
+    "articulo": 6,
+    "titulo": "Primas",
+    "canonico": "primas",
+    "pagina": 2,
+    "chars": 170
+  },
+  {
+    "poliza": "POL320210063",
+    "articulo": 7,
+    "titulo": "Exclusiones",
+    "canonico": "exclusiones",
+    "pagina": 2,
+    "chars": 2175
+  },
+  {
+    "poliza": "POL320210063",
+    "articulo": 8,
+    "titulo": "Denuncia de siniestro",
+    "canonico": "denuncia de siniestro",
+    "pagina": 3,
+    "chars": 6759
+  },
+  {
+    "poliza": "POL320210063",
+    "articulo": 13,
+    "titulo": "Otros seguros",
+    "canonico": "otros seguros",
+    "pagina": 5,
+    "chars": 261
+  },
+  {
+    "poliza": "POL320210063",
+    "articulo": 14,
+    "titulo": "Terminacion",
+    "canonico": "terminacion",
+    "pagina": 5,
+    "chars": 197
+  },
+  {
+    "poliza": "POL320210063",
+    "articulo": 15,
+    "titulo": "Vigencia",
+    "canonico": "vigencia",
+    "pagina": 5,
+    "chars": 107
+  },
+  {
+    "poliza": "POL320210063",
+    "articulo": 16,
+    "titulo": "Deducible",
+    "canonico": "deducible",
+    "pagina": 5,
+    "chars": 612
+  },
+  {
+    "poliza": "POL320210063",
+    "articulo": 18,
+    "titulo": "Rehabilitacion",
+    "canonico": "rehabilitacion",
+    "pagina": 5,
+    "chars": 278
+  },
+  {
+    "poliza": "POL320210063",
+    "articulo": 19,
+    "titulo": "Controversias",
+    "canonico": "controversias",
+    "pagina": 5,
+    "chars": 1299
+  },
+  {
+    "poliza": "POL320210063",
+    "articulo": 20,
+    "titulo": "Comunicaciones",
+    "canonico": "comunicaciones",
+    "pagina": 6,
+    "chars": 645
+  },
+  {
+    "poliza": "POL320210210",
+    "articulo": 1,
+    "titulo": "REGLAS APLICABLES AL CONTRATO",
+    "canonico": "reglas",
+    "pagina": 1,
+    "chars": 388
+  },
+  {
+    "poliza": "POL320210210",
+    "articulo": 2,
+    "titulo": "COBERTURA",
+    "canonico": "cobertura",
+    "pagina": 1,
+    "chars": 4174
+  },
+  {
+    "poliza": "POL320210210",
+    "articulo": 3,
+    "titulo": "DEFINICIONES",
+    "canonico": "definiciones",
+    "pagina": 2,
+    "chars": 5819
+  },
+  {
+    "poliza": "POL320210210",
+    "articulo": 4,
+    "titulo": "EXCLUSIONES",
+    "canonico": "exclusiones",
+    "pagina": 4,
+    "chars": 5531
+  },
+  {
+    "poliza": "POL320210210",
+    "articulo": 5,
+    "titulo": "CARENCIA",
+    "canonico": "carencia",
+    "pagina": 7,
+    "chars": 302
+  },
+  {
+    "poliza": "POL320210210",
+    "articulo": 6,
+    "titulo": "OBLIGACIONES DEL ASEGURADO",
+    "canonico": "obligaciones",
+    "pagina": 7,
+    "chars": 147
+  },
+  {
+    "poliza": "POL320210210",
+    "articulo": 7,
+    "titulo": "DECLARACIONES DEL ASEGURADO",
+    "canonico": "declaraciones",
+    "pagina": 7,
+    "chars": 257
+  },
+  {
+    "poliza": "POL320210210",
+    "articulo": 8,
+    "titulo": "PRIMAS Y EFECTOS DEL NO PAGO DE LAS PRIMAS",
+    "canonico": "primas",
+    "pagina": 7,
+    "chars": 768
+  },
+  {
+    "poliza": "POL320210210",
+    "articulo": 9,
+    "titulo": "BENEFICIARIOS",
+    "canonico": "beneficiarios",
+    "pagina": 7,
+    "chars": 597
+  },
+  {
+    "poliza": "POL320210210",
+    "articulo": 10,
+    "titulo": "DENUNCIA DE SINIESTROS",
+    "canonico": "denuncia de siniestro",
+    "pagina": 8,
+    "chars": 2922
+  },
+  {
+    "poliza": "POL320210210",
+    "articulo": 11,
+    "titulo": "VIGENCIA Y TERMINACIÓN",
+    "canonico": "vigencia",
+    "pagina": 8,
+    "chars": 1681
+  },
+  {
+    "poliza": "POL320210210",
+    "articulo": 12,
+    "titulo": "COMUNICACIÓN ENTRE LAS PARTES",
+    "canonico": "comunicaciones",
+    "pagina": 9,
+    "chars": 1325
+  },
+  {
+    "poliza": "POL320210210",
+    "articulo": 13,
+    "titulo": "SOLUCIÓN DE CONTROVERSIAS",
+    "canonico": "controversias",
+    "pagina": 9,
+    "chars": 1191
+  },
+  {
+    "poliza": "POL320210210",
+    "articulo": 14,
+    "titulo": "CLAUSULAS ADICIONALES",
+    "canonico": "clausulas adicionales",
+    "pagina": 10,
+    "chars": 277
+  },
+  {
+    "poliza": "POL320210210",
+    "articulo": 15,
+    "titulo": "DOMICILIO",
+    "canonico": "domicilio",
+    "pagina": 10,
+    "chars": 194
+  }
+]
