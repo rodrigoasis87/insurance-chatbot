@@ -16,9 +16,7 @@ from pathlib import Path
 
 import pymupdf
 
-from app.paths import PROJECT_ROOT
-
-RAW_PDFS_DIR = PROJECT_ROOT / "data" / "raw_pdfs"
+from app.paths import RAW_PDFS_DIR
 
 _ACCENT_PAIRS = {}
 for _src, _dst in (("á", "a"), ("é", "e"), ("í", "i"), ("ó", "o"), ("ú", "u"), ("ñ", "n")):
