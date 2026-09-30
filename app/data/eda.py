@@ -27,13 +27,7 @@ import pandas as pd
 import pymupdf
 
 from app.data.parser import RAW_PDFS_DIR, extract_articles, page_text, segment_text, unaccent
-from app.paths import PROJECT_ROOT
-
-REPORT_PATH = PROJECT_ROOT / "docs" / "EDA.md"
-EDA_DIR = PROJECT_ROOT / "docs" / "eda"
-STRUCTURE_CSV = EDA_DIR / "polizas_estructura.csv"
-STRUCTURE_JSON = EDA_DIR / "polizas_estructura.json"
-COBERTURA_MD = EDA_DIR / "cobertura_articulo2.md"
+from app.paths import COBERTURA_MD, EDA_DIR, PROJECT_ROOT, REPORT_PATH, STRUCTURE_CSV, STRUCTURE_JSON
 
 
 def corpus_profile() -> pd.DataFrame:
