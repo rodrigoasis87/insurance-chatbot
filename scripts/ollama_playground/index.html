@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prueba Ollama</title>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #6b7385;
+    --border: #dfe3ea; --accent: #2f6fed; --accent-text: #ffffff;
+    --user: #e8effd; --think: #f3f1ea; --error: #c0392b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171d; --panel: #1c2028; --text: #e6e9ef; --muted: #8e97a8;
+      --border: #2c323d; --accent: #5b8ff5; --accent-text: #0e1116;
+      --user: #22314d; --think: #262620; --error: #ef6b5b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex; flex-direction: column; height: 100vh;
+  }
+  header {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+    padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--panel);
+  }
+  header h1 { font-size: 16px; margin: 0 auto 0 0; }
+  header label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+  select, input[type=number], textarea {
+    font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px;
+  }
+  input[type=number] { width: 64px; }
+  #status { font-size: 12px; color: var(--muted); width: 100%; }
+  details.sys { padding: 0 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  details.sys summary { cursor: pointer; padding: 8px 0; color: var(--muted); font-size: 13px; }
+  details.sys textarea { width: 100%; margin-bottom: 10px; min-height: 60px; }
+  main { flex: 1; overflow-y: auto; padding: 16px; }
+  .log { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  .msg { padding: 10px 14px; border-radius: 12px; white-space: pre-wrap; word-wrap: break-word; }
+  .user { background: var(--user); align-self: flex-end; max-width: 85%; }
+  .bot { background: var(--panel); border: 1px solid var(--border); }
+  .bot details { background: var(--think); border-radius: 8px; padding: 6px 10px; margin-bottom: 8px; }
+  .bot details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  .bot details div { color: var(--muted); font-size: 13px; max-height: 260px; overflow-y: auto; margin-top: 6px; }
+  .stats { color: var(--muted); font-size: 12px; margin-top: 8px; }
+  /* Respuesta renderizada como Markdown */
+  .md { white-space: normal; }
+  .md > :first-child { margin-top: 0; }
+  .md > :last-child { margin-bottom: 0; }
+  .md p, .md ul, .md ol, .md pre, .md table, .md blockquote { margin: 0 0 10px; }
+  .md h1, .md h2, .md h3, .md h4 { margin: 14px 0 8px; line-height: 1.3; }
+  .md h1 { font-size: 1.3em; } .md h2 { font-size: 1.2em; } .md h3, .md h4 { font-size: 1.05em; }
+  .md ul, .md ol { padding-left: 22px; }
+  .md li { margin: 3px 0; }
+  .md strong { font-weight: 650; }
+  .md a { color: var(--accent); }
+  .md code {
+    font: 0.9em ui-monospace, "Cascadia Code", Consolas, monospace;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px;
+  }
+  .md pre { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; overflow-x: auto; }
+  .md pre code { border: 0; padding: 0; background: none; }
+  .md blockquote { border-left: 3px solid var(--border); padding-left: 12px; color: var(--muted); }
+  .md table { border-collapse: collapse; display: block; overflow-x: auto; }
+  .md th, .md td { border: 1px solid var(--border); padding: 5px 10px; text-align: left; }
+  .md th { background: var(--bg); }
+  .md hr { border: 0; border-top: 1px solid var(--border); margin: 12px 0; }
+  .timer {
+    display: inline-block; margin-top: 10px; padding: 4px 10px; border-radius: 999px;
+    background: var(--user); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums;
+  }
+  .timer.running { color: var(--muted); }
+  .error { color: var(--error); }
+  form {
+    display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); background: var(--panel);
+  }
+  form textarea { flex: 1; resize: none; height: 46px; }
+  button {
+    font: inherit; border: 0; border-radius: 8px; padding: 0 18px; cursor: pointer;
+    background: var(--accent); color: var(--accent-text); font-weight: 600;
+  }
+  button:disabled { opacity: .5; cursor: default; }
+  .empty { color: var(--muted); text-align: center; margin-top: 15vh; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Prueba Ollama</h1>
+  <label>Modelo <select id="model"></select></label>
+  <label><input type="checkbox" id="think"> Razonamiento</label>
+  <label>Temp. <input type="number" id="temp" value="0.7" min="0" max="2" step="0.1"></label>
+  <button type="button" id="clear" style="padding:6px 12px;background:var(--bg);color:var(--text);border:1px solid var(--border)">Limpiar</button>
+  <div id="status">Conectando…</div>
+</header>
+<details class="sys">
+  <summary>Prompt de sistema (opcional)</summary>
+  <textarea id="system" placeholder="Ej: Eres un asistente experto en pólizas de seguro. Responde en español y de forma breve."></textarea>
+</details>
+<main><div class="log" id="log"><p class="empty" id="empty">Escribe una pregunta para probar el modelo.</p></div></main>
+<form id="form">
+  <textarea id="input" placeholder="Escribe tu pregunta… (Enter envía, Shift+Enter nueva línea)" required></textarea>
+  <button id="send">Enviar</button>
+</form>
+
+<script>
+const $ = id => document.getElementById(id);
+const log = $("log"), main = document.querySelector("main");
+
+async function loadHealth() {
+  try {
+    const h = await (await fetch("/health")).json();
+    const current = $("model").value;
+    $("model").innerHTML = h.available
+      .filter(m => !m.includes("embed"))
+      .map(m => `<option>${m}</option>`).join("");
+    if (current) $("model").value = current;
+    const loaded = h.loaded.map(m => `${m.model} (${m.vram_gb}/${m.total_gb} GB en GPU)`).join(", ");
+    $("status").textContent = `Ollama: ${h.ollama} · Cargados: ${loaded || "ninguno"}`;
+  } catch (e) {
+    $("status").innerHTML = `<span class="error">No se pudo conectar con la API: ${e}</span>`;
+  }
+}
+
+// Markdown -> HTML saneado; si las librerías del CDN no cargaron, texto plano
+function renderMarkdown(el, text) {
+  if (window.marked && window.DOMPurify) {
+    el.innerHTML = DOMPurify.sanitize(marked.parse(text, { gfm: true, breaks: true }));
+  } else {
+    el.style.whiteSpace = "pre-wrap";
+    el.textContent = text;
+  }
+}
+
+function add(cls, text = "") {
+  $("empty")?.remove();
+  const el = document.createElement("div");
+  el.className = `msg ${cls}`;
+  el.textContent = text;
+  log.appendChild(el);
+  main.scrollTop = main.scrollHeight;
+  return el;
+}
+
+async function send(message) {
+  const start = performance.now();
+  add("user", message);
+  const bot = add("bot");
+  const thinkBox = document.createElement("details");
+  thinkBox.innerHTML = "<summary>Razonando…</summary><div></div>";
+  const thinkText = thinkBox.querySelector("div");
+  const answer = document.createElement("div");
+  answer.className = "md";
+  answer.textContent = "…";
+  const timer = document.createElement("div");
+  timer.className = "timer running";
+  bot.append(answer, timer);
+  const sec = ms => (ms / 1000).toFixed(1) + " s";
+  let firstAnswer = null;  // ms hasta la primera palabra de la respuesta (sin contar razonamiento)
+  const tick = setInterval(() => {
+    timer.textContent = `⏱ ${sec(performance.now() - start)} ${firstAnswer === null ? "· esperando respuesta…" : "· escribiendo…"}`;
+  }, 100);
+
+  // El modelo a veces mete <think>…</think> dentro del contenido; lo separamos aquí
+  let raw = "", thinking = "", sawClose = false;
+  const render = () => {
+    let content = raw;
+    let extraThink = "";
+    const open = raw.indexOf("<think>"), close = raw.indexOf("</think>");
+    // Lo que parecía respuesta era razonamiento: el conteo de "primera palabra" vuelve a empezar
+    if (close !== -1 && !sawClose) { sawClose = true; firstAnswer = null; }
+    if (close !== -1) { extraThink = raw.slice(open === -1 ? 0 : open + 7, close); content = raw.slice(close + 8); }
+    else if (open !== -1 || (!raw.trim() && thinking)) { extraThink = raw.slice(open + 7); content = ""; }
+    const t = (thinking + extraThink).trim();
+    if (t) { if (!thinkBox.isConnected) bot.prepend(thinkBox); thinkText.textContent = t; thinkText.scrollTop = thinkText.scrollHeight; }
+    renderMarkdown(answer, content.trim() || "…");
+    if (content.trim() && firstAnswer === null) firstAnswer = performance.now() - start;
+    main.scrollTop = main.scrollHeight;
+  };
+
+  const body = {
+    message, model: $("model").value, think: $("think").checked,
+    temperature: parseFloat($("temp").value) || 0, system: $("system").value.trim() || null,
+  };
+  let firstToken = null;
+  try {
+    const res = await fetch("/chat/stream", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split("\n"); buf = lines.pop();
+      for (const line of lines) {
+        if (!line) continue;
+        const c = JSON.parse(line);
+        if (c.error) throw new Error(c.error);
+        if ((c.content || c.thinking) && firstToken === null) firstToken = (performance.now() - start) / 1000;
+        if (c.thinking) thinking += c.thinking;
+        if (c.content) raw += c.content;
+        if (c.stats) {
+          const s = c.stats, stats = document.createElement("div");
+          stats.className = "stats";
+          stats.textContent = `${s.wall_s}s total · primer token ${firstToken?.toFixed(2)}s · carga ${s.load_s}s · ${s.tokens} tokens · ${s.tokens_per_s} tok/s · ${body.model}`;
+          bot.append(stats);
+        }
+        render();
+      }
+    }
+    thinkBox.querySelector("summary").textContent = `Razonamiento (${thinkText.textContent.length} caracteres)`;
+  } catch (e) {
+    answer.innerHTML = `<span class="error">Error: ${e.message}</span>`;
+  }
+  clearInterval(tick);
+  const total = performance.now() - start;
+  timer.classList.remove("running");
+  timer.textContent = firstAnswer === null
+    ? `⏱ ${sec(total)} total`
+    : thinkText.textContent
+      ? `⏱ Respuesta completa en ${sec(total)} · razonó ${sec(firstAnswer)} · escribió ${sec(total - firstAnswer)}`
+      : `⏱ Respuesta completa en ${sec(total)} · primera palabra a los ${sec(firstAnswer)}`;
+  loadHealth();
+}
+
+$("form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const msg = $("input").value.trim();
+  if (!msg) return;
+  $("input").value = "";
+  $("send").disabled = true;
+  await send(msg);
+  $("send").disabled = false;
+  $("input").focus();
+});
+$("input").addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("form").requestSubmit(); }
+});
+$("clear").addEventListener("click", () => {
+  log.innerHTML = '<p class="empty" id="empty">Escribe una pregunta para probar el modelo.</p>';
+});
+
+loadHealth();
+</script>
+</body>
+</html>

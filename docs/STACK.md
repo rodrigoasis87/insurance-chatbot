@@ -44,6 +44,13 @@ Elasticsearch, OpenAI, etc. Requisitos del equipo:
 > ollama pull qwen3:4b` (y `nomic-embed-text`). Onboarding completo en
 > `scripts/setup.sh`. Imágenes **pinneadas** (no `:latest`) por reproducibilidad.
 
+> **Actualización (2026-09-28) — GPU opcional:** `docker-compose.gpu.yml` es un
+> override que reserva la GPU NVIDIA para el servicio `ollama`. Es opcional para no
+> romper el entorno de quien no tiene NVIDIA (baseline CPU-only de la sección 2);
+> `scripts/setup.sh` lo aplica solo si detecta GPU usable desde Docker. Medido en
+> una GTX 1660 Ti (6 GB): `qwen3:4b` carga 37/37 capas en GPU (~3.6 GB VRAM) y
+> genera ~55 tokens/s.
+
 Dependencias PyPI a agregar con `uv`:
 
 ```bash
@@ -111,6 +118,7 @@ bash scripts/setup.sh
 
 # Manualmente:
 docker compose up -d                     # Qdrant (6333) + Ollama (11434)
+# con GPU NVIDIA: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
 docker compose exec ollama ollama pull qwen3:4b
 docker compose exec ollama ollama pull nomic-embed-text
 uv run python scripts/smoke_stack.py     # integración ChatOllama/OllamaEmbeddings/Qdrant

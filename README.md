@@ -54,6 +54,33 @@ uv run python -m app.data.download     # descarga los PDFs a data/raw_pdfs
 > Si tenés Ollama nativo instalado y corriendo, apagalo (`ollama stop`) para
 > no chocar con el puerto 11434 del contenedor.
 
+### GPU NVIDIA (opcional)
+
+Por defecto Ollama corre en CPU. Si tenés GPU NVIDIA, `docker-compose.gpu.yml`
+le asigna la GPU al contenedor (respuestas mucho más rápidas). `scripts/setup.sh`
+lo detecta solo; a mano:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+docker compose exec ollama ollama ps   # la columna PROCESSOR debe decir "100% GPU"
+```
+
+Para no repetir los `-f`, descomentá las líneas `COMPOSE_*` de `.env.example` en
+tu `.env`. Requisitos: driver NVIDIA en el host y Docker con soporte GPU (Docker
+Desktop + WSL2 ya lo trae; en Linux nativo, NVIDIA Container Toolkit). Probalo con
+`docker run --rm --gpus all --entrypoint nvidia-smi ollama/ollama:0.24.0 -L`.
+No lo uses sin GPU NVIDIA: el contenedor no arranca.
+
+### Playground del modelo
+
+Para probar el LLM a mano (tiempos de respuesta, razonamiento, prompts de sistema):
+
+```bash
+uv run python scripts/ollama_playground/ollama_api.py
+```
+
+Abrí http://localhost:8000 (chat con cronómetro y tokens/s) o http://localhost:8000/docs.
+
 ## Estado
 
 - [x] Repo inicializado con uv, estructura modular y descarga S3
