@@ -44,6 +44,12 @@ Elasticsearch, OpenAI, etc. Requisitos del equipo:
 > ollama pull qwen3:4b` (y `nomic-embed-text`). Onboarding completo en
 > `scripts/setup.sh`. Imágenes **pinneadas** (no `:latest`) por reproducibilidad.
 
+> **Actualización (2026-09-30):** el **MVP incluye agente + búsqueda web**.
+> `query()` (#17) es un agente acotado a **≤2 llamadas LLM** por consulta
+> (retrieve → juzgar → `web_search` si falta), con hard gate `UMBRAL_SCORE`
+> antes del LLM y fuentes web siempre marcadas (`origen: web`). Detalle en
+> `docs/narrative.md` §4 y `docs/CONTRACTS.md` §3.
+
 Dependencias PyPI a agregar con `uv`:
 
 ```bash
