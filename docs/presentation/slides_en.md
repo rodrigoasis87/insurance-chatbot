@@ -31,17 +31,53 @@ Answers with verifiable citations about Chilean health insurance policies
 - The advisor must locate **the right contract and the right article every time** — slow and error-prone.
 - The problem is not "generating", it is **finding the faithful fragment** inside the documentation and **returning it citing the source**.
 - **Business rule:** given a question about policies, return the faithful fragment **with its citation** (policy · article · page), without inventing anything.
+- **Documentary underwriting:** the assistant reports what the contract requires/conditions for a profile; it **does not decide, does not price, and does not ask for personal data**.
 
 ---
 
-# Persona: the advisor at a health insurance brokerage
+# Actor Map
 
-**Primary persona (B2B),** with the policyholder as secondary.
+The chatbot is a **movable piece**: it stands **on the brokerage** and assists the **in-house advisor** (who has **two tasks**: answer and recombine).
 
-- **Tasks:** handle policyholder inquiries and **validate the answer against the contract** before communicating it.
-- **Typical questions:** does it cover X? Why doesn't it cover Y? Premium/waiting period, term/renewal, claim deadlines, COVID case.
-- **Needs:** clear answer · **original text fragment** · **verifiable citation** · coverage of **all** clauses · consultation privacy.
-- **Value:** confidence to answer **without re-reading the PDF**.
+```
+[REGULATOR · Policy Depository CMF] ──► catalog of templates ◄── [INSURERS]
+                                    │
+                   [BROKERAGE ◉ bot]  ← parked: assists the in-house advisor
+                          │              │
+              advises clients      advises insurers
+                          ▼
+                   [END CLIENT]
+```
+
+**When it operates (lifecycle):** UNDERWRITING (profile + documentary answer) · ISSUANCE (recombine → DEM) · IN-FORCE (answer queries) · CLAIM (citations/deadlines).
+
+- Brokerage = **central intermediary**: advises both **insurers** and **end clients**.
+- **Regulator** = envelope (Policy Depository): the catalog holds deposited general-condition templates.
+- End client = **indirect** user (served by the advisor) · **B2C = future evolution**.
+
+---
+
+# Persona: the advisor at the brokerage (two tasks)
+
+**Primary persona (B2B):** the bot assists the **in-house human**; the end client is an indirect user (B2C = evolution).
+
+1. **Answer policyholder inquiries** and **validate against the contract** before communicating (verifiable citation).
+2. **Recombine policies** from market cases: build **DEM** drafts (the brokerage's own standard) to propose to insurers.
+
+- Typical questions: does it cover X? why not Y? term/renewal, claim deadlines, COVID, **market price ranges** (via cited web).
+- Value: answer **without re-reading the PDF** and produce new proposals in minutes.
+
+---
+
+# Client Profile: no Personal Data
+
+The bot establishes the **minimum client profile without asking for identifying data or storing anything**: only the conditions policies require to narrow coverage (verified in the corpus):
+
+- **age** (9/9) · **pre-existing conditions** (8/9) · **risk sports** (7/9) · **Fonasa/Isapre** (7/9) · **pregnancy/maternity** (7/9) · **chronic diseases** (2/9) · **collective/labor** (3/9) · **residence** (1/9).
+
+- **Curated options**, no free text · **in-memory (not persisted)** · **confirmed by the advisor** (already known via CRM).
+- Several are **sensitive data** (health, Law 19.628) → only a clause selector, never retained.
+- Output is **conditional and textual** — "for this profile, the text conditions X" — **never a price or a decision** (price → cited `web_search`).
 
 ---
 
@@ -71,9 +107,9 @@ Findings from the **EDA** (they size the problem, they don't define it):
 # Scope and Guardrails
 
 - **Domain (inside the policies):** we answer with citations from the corpus.
-- **Related (industry, outside the corpus):** the **agent**'s web search — competitor prices, current regulation — with the **external source always marked**.
+- **Related (industry, outside the corpus):** the **agent**'s web search — prices and **market value/price ranges** for a policy type, regulation, real companies — with the **external source always marked**; **a figure is never invented**.
 - **Out of domain:** we do not answer content; we explain why and restate the scope.
-- **Guardrail:** `SCORE_THRESHOLD` filters in code + no-hallucination instruction within the call itself · **max. 2 LLM calls per query**.
+- **Guardrail:** `SCORE_THRESHOLD` filters in code + no-hallucination instruction within the call itself · **max. 2 LLM calls per query** · no PII.
 
 ---
 
@@ -122,16 +158,19 @@ Findings from the **EDA** (they size the problem, they don't define it):
 
 # Solution · Architecture in Cells
 
-MVP baseline: agent + web, **≤2 LLM calls**, answers always cited.
+MVP baseline: agent + web, **≤2 LLM calls**, answers always cited **+ generation v0 (DEM · #23)**.
 
 ```
 Data (D1→D2) ─► RAG Engine (R1→R2) ─► Exposure (E1)
-                                    ▲
-Assurance (G1) ─── validates / secures ┘
+                          │
+Generation (R3) ◄─ recombine DEM (demo v0)
+                          ▲
+Assurance (G1) ─── validates / secures ─┘
 ```
 
 - **Data:** D1 capture & cleaning → D2 chunking
 - **RAG Engine:** R1 indexing & retrieval → **R2 agent + web**
+- **Generation:** R3 **DEM recombination v0** (canonical blocks + profile → draft PDF)
 - **Exposure:** E1 API + UI
 - **Assurance:** G1 QA, eval and ops (cross-cutting)
 
@@ -165,13 +204,15 @@ Assurance (G1) ─── validates / secures ┘
 4. If there is nothing → "not in the sources" + assistant scope.
 
 - LLM **`qwen3:4b`** local · domain guardrail · contract in `CONTRACTS.md` §3 (#17 + #8).
+- **Market value/price ranges** (the corpus has no prices): answered via **cited** `web_search` as a range, never invented.
 
 ---
 
 # Solution · Exposure (E1)
 
-- **FastAPI** (`/chat`, `/health`, `/policies`) — **thin HTTP**: delegates to `query()`, no RAG logic of its own (#16).
+- **FastAPI** (`/chat`, `/health`, `/policies`, **`/policy-recombine`**) — **thin HTTP**: delegates to `query()`, no RAG logic of its own (#16).
 - **Chainlit** — chat with **visible sources**; web ones are visually differentiated (#18).
+- **Generation v0 (#23):** `/policy-recombine` → **DEM draft PDF** (canonical blocks + profile without PII; marked "DRAFT · not issued").
 - Single docker compose · hardened CORS · stack smoke test.
 
 ---
@@ -181,12 +222,13 @@ Assurance (G1) ─── validates / secures ┘
 - **QA:** pytest without Docker (mocks) — parser, retrieval, API (#20).
 - **Eval:** golden set → `recall@k`, `cita_ok`, web marking (#19).
 - **Ops:** 1-command compose + README + demo video (#21, #22).
-- **MVP demo:** answer with internal citation + **1 example of a marked web source**.
+- **MVP demo:** answer with internal citation + **1 example of a marked web source** + **1 DEM draft** (recombination v0).
 
 | Milestone | Scope | Status |
 |---|---|---|
 | **M1 · Data** | #4, #7 | in progress (#4) |
 | **M2 · RAG Engine** | #9, #8, #17, #19 | next |
+| **G · Generation v0** | #23 | demo CLI → DEM PDF |
 | **M3 · Product** | #16, #18, #20, #21, #22 | planned |
 
 ---
@@ -198,6 +240,7 @@ Assurance (G1) ─── validates / secures ┘
 1. Finish `articulos.jsonl` (#4) and `chunks.jsonl` (#7)
 2. Index build + `search()` (#9) and web tool (#8)
 3. Agent `query()` with citations (#17) → first demos
-4. Golden set + eval (#19) and product (API/UI/compose · #16–#22)
+4. **DEM recombination demo v0 (→ PDF, #23)**
+5. Golden set + eval (#19) and product (API/UI/compose · #16–#22)
 
 **Questions?**
