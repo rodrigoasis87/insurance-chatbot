@@ -31,17 +31,53 @@ Respuestas con citas verificables sobre pólizas de salud chilenas
 - El asesor debe ubicar **el contrato correcto y el artículo correcto cada vez** — lento y propenso a error.
 - El problema no es "generar", es **encontrar el fragmento fiel** dentro de la documentación y **devolverlo citando la fuente**.
 - **Regla de negocio:** ante una pregunta sobre pólizas, devolver el fragmento fiel **con su cita** (póliza · artículo · página), sin inventar nada.
+- **Suscripción documental:** el asistente informa lo que exige/condiciona el contrato para un perfil; **no decide, no tarifica y no pide datos personales**.
 
 ---
 
-# Persona: el asesor/a de una corredora de seguros de salud - Rodrigo
+# Mapa de actores - Rodrigo
 
-**Persona primaria (B2B),* con el asegurado como secundaria.
+El chatbot es una **pieza móvil**: está parado **sobre la corredora** y asiste al **asesor/a interno** (que tiene **dos tareas**: responder y recombinar).
 
-- **Tareas:** atender consultas de los asegurados y **validar la respuesta contra el contrato** antes de comunicarla.
-- **Preguntas típicas:** ¿cubre X? ¿Por qué no me cubre Y? Prima/carencia, vigencia/renovación, plazos de siniestro, caso COVID.
-- **Necesita:** respuesta clara · **fragmento textual original** · **cita verificable** · cobertura de **todas** las cláusulas · privacidad de la consulta.
-- **Valor:** confianza para responder **sin releer el PDF**.
+```
+[REGULADOR · Depósito CMF] ──► catálogo de moldes ◄── [ASEGURADORAs]
+                                    │
+                   [CORREDORA ◉ bot]  ← parada: asiste al asesor/a interno
+                          │              │
+             asesora clientes     asesora aseguradoras
+                          ▼
+                   [CLIENTE FINAL]
+```
+
+**Cuándo opera (ciclo de vida):** SUSCRIPCIÓN (perfil + respuesta documental) · EMISIÓN (recombinar → DEM) · VIGENCIA (responder consultas) · SINIESTRO (citas/plazos).
+
+- Corredora = **intermediario central**: asesora a **aseguradoras** y a **clientes finales**.
+- **Regulador** = envolvente (Depósito de Pólizas): el catálogo son moldes de condiciones generales depositadas.
+- Cliente final = usuario **indirecto** (lo atiende el asesor) · **B2C = evolución futura**.
+
+---
+
+# Persona: el asesor/a de la corredora (dos tareas) - Rodrigo
+
+**Persona primaria (B2B):** el bot asiste al **humano interno**; el cliente final es usuario indirecto (B2C = evolución).
+
+1. **Responder consultas** de asegurados y **validar contra el contrato** antes de comunicarla (cita verificable).
+2. **Recombinar** pólizas desde casos del mercado: arma borradores **DEM** (estándar propio de la corredora) para proponérselos a aseguradoras.
+
+- Preguntas típicas: ¿cubre X? ¿por qué no Y? vigencia/renovación, plazos de siniestro, COVID, **rangos de precios de mercado** (vía web citada).
+- Valor: responder **sin releer el PDF** y producir propuestas nuevas en minutos.
+
+---
+
+# Perfil del cliente: sin datos personales - Rodrigo/Joel
+
+El bot fija el **perfil mínimo del cliente sin pedir datos identificatorios ni guardar nada**: solo las condiciones que las pólizas requieren para acotar cobertura (verificadas en el corpus):
+
+- **edad** (9/9) · **preexistencias** (8/9) · **deportes de riesgo** (7/9) · **Fonasa/Isapre** (7/9) · **embarazo/maternidad** (7/9) · **enfermedades crónicas** (2/9) · **colectivo** (3/9) · **residencia** (1/9).
+
+- **Opciones curadas**, no texto libre · **in-memory (no persiste)** · lo **confirma el asesor** (ya lo conoce por CRM).
+- Varias son **datos sensibles** (salud, Ley 19.628) → solo selector de cláusula, nunca retención.
+- Salida **condicional y textual** — "según este perfil, el texto condiciona X" — **nunca un precio ni una decisión** (precio → `web_search` citado).
 
 ---
 
@@ -71,9 +107,9 @@ Hallazgos del **EDA** (dimensionan el problema, no lo definen):
 # Alcance y guardrails - Joel
 
 - **Dominio (dentro de las pólizas):** respondemos con citas del corpus.
-- **Relacionado (del rubro, fuera del corpus):** web del **agente** — precios de competencia, normativa vigente — con **fuente externa siempre marcada**.
+- **Relacionado (del rubro, fuera del corpus):** web del **agente** — precios y **rangos de valores/precios de mercado** para un tipo de póliza, normativa, compañías reales — con **fuente externa siempre marcada**; **nunca se inventa una cifra**.
 - **Fuera de dominio:** no respondemos contenido; explicamos por qué y reiteramos el alcance.
-- **Guardrail:** `UMBRAL_SCORE` filtra en código + instrucción de no inventar en la propia llamada · **máx. 2 llamadas LLM por consulta**.
+- **Guardrail:** `UMBRAL_SCORE` filtra en código + instrucción de no inventar en la propia llamada · **máx. 2 llamadas LLM por consulta** · sin PII.
 
 ---
 
@@ -122,16 +158,19 @@ Hallazgos del **EDA** (dimensionan el problema, no lo definen):
 
 # Solución · Arquitectura en células - Julian
 
-Baseline del MVP: agent + web, **≤2 llamadas LLM**, respuestas siempre citadas.
+Baseline del MVP: agent + web, **≤2 llamadas LLM**, respuestas siempre citadas **+ generación v0 (DEM · #23)**.
 
 ```
 Datos (D1→D2) ─► Motor RAG (R1→R2) ─► Exposición (E1)
-                                    ▲
+                          │
+Generación (R3) ◄─ recombinar DEM (demo v0)
+                          ▲
 Garantías (G1) ─── valida / asegura ─┘
 ```
 
 - **Datos:** D1 captura y limpieza → D2 chunking
 - **Motor RAG:** R1 indexación y retrieval → **R2 agente + web**
+- **Generación:** R3 **recombinación DEM v0** (bloques canónicos + perfil → PDF borrador)
 - **Exposición:** E1 API + UI
 - **Garantías:** G1 QA, eval y ops (transversal)
 
@@ -165,13 +204,15 @@ Garantías (G1) ─── valida / asegura ─┘
 4. Si no hay nada → "no está en las fuentes" + alcance del asistente.
 
 - LLM **`qwen3:4b`** local · guardrail de dominio · contrato en `CONTRACTS.md` §3 (#17 + #8).
+- **Rangos de valores/precios de mercado** (el corpus no tiene precios): se responden por `web_search` **citado** como rango, nunca inventados.
 
 ---
 
 # Solución · Exposición (E1) - Luis
 
-- **FastAPI** (`/chat`, `/health`, `/policies`) — **HTTP delgado**: delega en `query()`, sin lógica RAG propia (#16).
+- **FastAPI** (`/chat`, `/health`, `/policies`, **`/policy-recombine`**) — **HTTP delgado**: delega en `query()`, sin lógica RAG propia (#16).
 - **Chainlit** — chat con **fuentes visibles**; las web se diferencian visualmente (#18).
+- **Generación v0 (#23):** `/policy-recombine` → **PDF borrador DEM** (bloques canónicos + perfil sin PII; marcado "BORRADOR · no emitida").
 - Docker compose único · CORS acotado · smoke test del stack.
 
 ---
@@ -181,12 +222,13 @@ Garantías (G1) ─── valida / asegura ─┘
 - **QA:** pytest sin Docker (mocks) — parser, retrieval, API (#20).
 - **Eval:** golden set → `recall@k`, `cita_ok`, marcación de web (#19).
 - **Ops:** compose de 1 comando + README + demo en video (#21, #22).
-- **Demo MVP:** respuesta con cita interna + **1 ejemplo de fuente web marcada**.
+- **Demo MVP:** respuesta con cita interna + **1 ejemplo de fuente web marcada** + **1 borrador DEM** (recombinación v0).
 
 | Hito | Alcance | Estado |
 |---|---|---|
 | **M1 · Datos** | #4, #7 | en curso (#4) |
 | **M2 · Motor RAG** | #9, #8, #17, #19 | próximo |
+| **G · Generación v0** | #23 | demo CLI → PDF DEM |
 | **M3 · Producto** | #16, #18, #20, #21, #22 | planificado |
 
 ---
@@ -198,6 +240,7 @@ Garantías (G1) ─── valida / asegura ─┘
 1. Terminar `articulos.jsonl` (#4) y `chunks.jsonl` (#7)
 2. Index build + `search()` (#9) y tool web (#8)
 3. `query()` del agente con citas (#17) → primeras demos
-4. Golden set + eval (#19) y producto (API/UI/compose · #16–#22)
+4. **Demo v0 de recombinación DEM (→ PDF, #23)**
+5. Golden set + eval (#19) y producto (API/UI/compose · #16–#22)
 
 **¿Preguntas?**

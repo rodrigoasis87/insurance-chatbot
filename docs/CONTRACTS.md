@@ -34,6 +34,11 @@ Reglas:
 - `ramo = "salud" si código[3:5]=="32" else "accidentes"`. `año = "20"+código[6:8]`.
   Se decodifican **una única vez acá**; aguas abajo (#7 en adelante) se
   **propagan**, nunca se re-decodifican.
+- **Nota de proveniencia (códigos):** el patrón `POL{ramo}0{YY}{seq}` y el mapeo
+  de ramo son una **heurística propia inferida de los títulos del dataset**
+  (`app/data/eda.py:45-51`), validada contra un código real del Depósito de
+  Pólizas (`POL 320230367`) pero **no es una tabla oficial del regulador**; aplica
+  solo a códigos de depósito (no a pólizas emitidas). Ver `docs/ARCHITECTURE.md` §5.1.
 - Tipos: `articulo` y `pagina` son `int` (página 1-based del PDF); el resto `str`.
 - `chars` = `len(texto)` sobre el **texto limpio** (no tiene por qué coincidir
   con la columna `chars` de la matriz EDA, que se calculó pre-limpieza).
@@ -167,6 +172,45 @@ Reglas:
   como fuentes, diferenciando visualmente las de `origen: "web"`.
 - `GET /policies` puede derivar la lista de `data/raw_pdfs/` o de los índices;
   la fuente concreta la define `#16`.
+
+---
+
+## 4.1 Contrato de Generación · Recombinación DEM (R3 · #23, demo v0)
+
+Demo v0: ensambla **bloques de cláusulas canónicas** de un molde base del
+catálogo + **perfil sin PII** (opciones curadas) → **borrador DEM** (PDF + JSON).
+Corre hoy como **CLI** (`uv run python -m app.generation.dem`); el endpoint se
+cablea en `#16` con este contrato.
+
+```json
+POST /policy-recombine
+  {"molde": "POL320200071",
+   "perfil": {"edad": "30-40", "preexistencias": "no", "deportes_riesgo": "no",
+              "fonasa_isapre": "isapre", "embarazo": "no", "cronicas": "no",
+              "colectivo": "no", "residencia": "chile"}}
+  → 200
+  {"codigo": "DEM260001",
+   "molde_base": "POL320200071",
+   "creado_en": "2026-10-02T...",
+   "perfil": { ... mismos valores curados ... },
+   "secciones": [
+     {"nombre": "cobertura", "titulo": "COBERTURA", "pagina": 1,
+      "perfil": "base", "texto": "…bloque canónico del molde…"},
+     {"nombre": "exclusiones", "titulo": "EXCLUSIONES", "pagina": 3,
+      "perfil": "preexistencias", "texto": "…"}],
+   "pdf_url": "/generated/DEM260001.pdf",
+   "aviso": "BORRADOR · no emitida · estándar de la corredora (código DEM); la aseguradora puede adoptarlo y depositarlo como POL."}
+```
+
+Reglas:
+
+- El DEM es **borrador**: marcado en el PDF y en el payload (`aviso`); **nunca**
+  una póliza emitida ni un código `POL`.
+- El **perfil se compone solo de opciones curadas** (bandas/sí-no/listas fijas),
+  **no persiste** (contexto de la llamada) y alimenta únicamente la **selección
+  de bloques** del molde.
+- Cada sección conserva su **cita de origen** del molde (`nombre`, `pagina`).
+- El código `DEM` es correlativo de la corredora: `DEM{YYYY}{seq:04d}`.
 
 ---
 
