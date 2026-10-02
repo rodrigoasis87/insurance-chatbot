@@ -16,7 +16,7 @@ Respuestas con citas verificables sobre pólizas de salud chilenas
 
 ---
 
-# Agenda
+# Agenda - Rodrigo
 
 1. **Problem Statement** — contexto y motivación
 2. **Dataset Description** — recursos y cómo los aprovechamos
@@ -25,7 +25,7 @@ Respuestas con citas verificables sobre pólizas de salud chilenas
 
 ---
 
-# Contexto y regla de negocio
+# Contexto y regla de negocio - Rodrigo
 
 - Las pólizas de salud chilenas son **documentos legales densos en PDF**, con estilos de cabecera heterogéneos y, en algunos casos, **documentos compuestos** (varias pólizas/anexos anidados).
 - El asesor debe ubicar **el contrato correcto y el artículo correcto cada vez** — lento y propenso a error.
@@ -34,7 +34,7 @@ Respuestas con citas verificables sobre pólizas de salud chilenas
 
 ---
 
-# Persona: el asesor/a de una corredora de seguros de salud
+# Persona: el asesor/a de una corredora de seguros de salud - Rodrigo
 
 **Persona primaria (B2B),* con el asegurado como secundaria.
 
@@ -45,7 +45,7 @@ Respuestas con citas verificables sobre pólizas de salud chilenas
 
 ---
 
-# El problema en números
+# El problema en números - Rodrigo
 
 Hallazgos del **EDA** (dimensionan el problema, no lo definen):
 
@@ -57,7 +57,7 @@ Hallazgos del **EDA** (dimensionan el problema, no lo definen):
 
 ---
 
-# Requisitos → prioridades (orden = criterio de diseño)
+# Requisitos → prioridades (orden = criterio de diseño) - Joel
 
 1. **Seguridad** — stack **100% local**; la consulta no sale del sistema.
 2. **Trazabilidad** — la respuesta va **siempre con sus fuentes**; la UI las muestra.
@@ -68,7 +68,7 @@ Hallazgos del **EDA** (dimensionan el problema, no lo definen):
 
 ---
 
-# Alcance y guardrails
+# Alcance y guardrails - Joel
 
 - **Dominio (dentro de las pólizas):** respondemos con citas del corpus.
 - **Relacionado (del rubro, fuera del corpus):** web del **agente** — precios de competencia, normativa vigente — con **fuente externa siempre marcada**.
@@ -77,7 +77,7 @@ Hallazgos del **EDA** (dimensionan el problema, no lo definen):
 
 ---
 
-# Dataset · Fuente y acceso
+# Dataset · Fuente y acceso - Cris
 
 - **9 PDFs** descargados de S3 a `data/raw_pdfs` (gitignored).
   - Salud: **8** · Accidentes: **1**
@@ -87,7 +87,7 @@ Hallazgos del **EDA** (dimensionan el problema, no lo definen):
 
 ---
 
-# Dataset · Estructura descubierta (EDA)
+# Dataset · Estructura descubierta (EDA) - Cris
 
 - **Matriz esqueleto**: el orden de cláusulas es compatible entre pólizas (posición 2 = cobertura, con excepciones).
 - **36 claves canónicas** normalizan estilos de escritura distintos.
@@ -97,7 +97,7 @@ Hallazgos del **EDA** (dimensionan el problema, no lo definen):
 
 ---
 
-# Dataset · Calidad (EDA)
+# Dataset · Calidad (EDA) - Jimmy
 
 - **5 casos de suciedad** formalizados en reglas de limpieza:
   1. Bytes de control
@@ -110,7 +110,7 @@ Hallazgos del **EDA** (dimensionan el problema, no lo definen):
 
 ---
 
-# Dataset · Cómo la aprovechamos
+# Dataset · Cómo la aprovechamos - Jimmy
 
 - **Segmentación por artículo** (227 registros) + metadata:
   `poliza`, `ramo`, `año`, `canonico`, `pagina`, `chars`.
@@ -120,7 +120,7 @@ Hallazgos del **EDA** (dimensionan el problema, no lo definen):
 
 ---
 
-# Solución · Arquitectura en células
+# Solución · Arquitectura en células - Julian
 
 Baseline del MVP: agent + web, **≤2 llamadas LLM**, respuestas siempre citadas.
 
@@ -137,7 +137,7 @@ Garantías (G1) ─── valida / asegura ─┘
 
 ---
 
-# Solución · Datos (D1 + D2)
+# Solución · Datos (D1 + D2) - Julian
 
 - **D1 · Captura y limpieza (#4):** PDFs → parser (`extract_articles`, `segment_text`, `canonical_title`) → limpieza → `articulos.jsonl` (227, con metadata).
 - **D2 · Chunking (#7):** chunks que **no cruzan de artículo**; `RecursiveCharacterTextSplitter` · `chunk_size=1000` · `overlap=150`.
@@ -146,7 +146,7 @@ Garantías (G1) ─── valida / asegura ─┘
 
 ---
 
-# Solución · Motor RAG — R1: indexación y retrieval
+# Solución · Motor RAG — R1: indexación y retrieval - Marlon
 
 - **Qdrant** × colección `polizas` (768 dims · coseno) + `search(query, top_k)` con **score y metadata** (#9).
 - Embeddings **`nomic-embed-text`** vía Ollama (local).
@@ -155,7 +155,7 @@ Garantías (G1) ─── valida / asegura ─┘
 
 ---
 
-# Solución · Motor RAG — R2: agente + web
+# Solución · Motor RAG — R2: agente + web - Marlon
 
 `query()` = agente acotado:
 
@@ -168,7 +168,7 @@ Garantías (G1) ─── valida / asegura ─┘
 
 ---
 
-# Solución · Exposición (E1)
+# Solución · Exposición (E1) - Luis
 
 - **FastAPI** (`/chat`, `/health`, `/policies`) — **HTTP delgado**: delega en `query()`, sin lógica RAG propia (#16).
 - **Chainlit** — chat con **fuentes visibles**; las web se diferencian visualmente (#18).
@@ -176,7 +176,7 @@ Garantías (G1) ─── valida / asegura ─┘
 
 ---
 
-# Solución · Garantías y roadmap (G1)
+# Solución · Garantías y roadmap (G1) - Luis
 
 - **QA:** pytest sin Docker (mocks) — parser, retrieval, API (#20).
 - **Eval:** golden set → `recall@k`, `cita_ok`, marcación de web (#19).
