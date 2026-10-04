@@ -7,6 +7,7 @@ prototipo; dentro de Solución viven las **células**.
 - Enunciado de referencia y su traducción a alcance: `docs/enunciado.md`
 - Arquitectura y post-MVP: `docs/ARCHITECTURE.md`
 - Contratos de datos y API: `docs/CONTRACTS.md`
+- Ontología / taxonomía del dominio: `docs/ONTOLOGIA.md`
 
 ---
 
