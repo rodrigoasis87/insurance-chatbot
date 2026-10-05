@@ -18,8 +18,10 @@ Una línea JSON por artículo. Exactamente **227 registros** en el corpus actual
 ```json
 {
   "poliza": "POL320130223",
+  "documento": 1,
   "ramo": "salud",
   "año": "2013",
+  "familia": "colectivo_complementario",
   "articulo": 2,
   "titulo": "COBERTURA",
   "canonico": "cobertura",
@@ -31,17 +33,85 @@ Una línea JSON por artículo. Exactamente **227 registros** en el corpus actual
 
 Reglas:
 
+- **La clave única es `(poliza, documento, articulo)`.** Es la que consume el
+  `point_id` de `app/rag/indexer.py`, así que **tiene** que ser única.
+- `poliza` es el **código de depósito real** del sub-documento, **no** el nombre
+  del PDF. `documento` es el ordinal del sub-documento dentro del PDF (1..n).
+  Los PDFs del Depósito traen **varias pólizas pegadas** y la numeración de
+  artículos **reinicia en 1** en cada una, así que `(poliza, articulo)` a secas
+  **NO es clave** (daba 37 colisiones sobre 227). Ver "Sub-documentos" abajo.
 - `ramo = "salud" si código[3:5]=="32" else "accidentes"`. `año = "20"+código[6:8]`.
   Se decodifican **una única vez acá**; aguas abajo (#7 en adelante) se
   **propagan**, nunca se re-decodifican.
+- `familia` se deriva del **título de portada del sub-documento** (no del nombre
+  del archivo, no del cuerpo: el cuerpo nombra "accidente" en artículos de
+  cualquier póliza). 8 familias en el corpus, 0 fallback `otra`. Tabla completa
+  en `docs/ONTOLOGIA.md` §4.2.
 - **Nota de proveniencia (códigos):** el patrón `POL{ramo}0{YY}{seq}` y el mapeo
   de ramo son una **heurística propia inferida de los títulos del dataset**
-  (`app/data/eda.py:45-51`), validada contra un código real del Depósito de
+  (`app/data/parser.py:poliza_ramo`), validada contra un código real del Depósito de
   Pólizas (`POL 320230367`) pero **no es una tabla oficial del regulador**; aplica
   solo a códigos de depósito (no a pólizas emitidas). Ver `docs/ARCHITECTURE.md` §5.1.
-- Tipos: `articulo` y `pagina` son `int` (página 1-based del PDF); el resto `str`.
+- Tipos: `articulo`, `pagina` y `documento` son `int` (página 1-based del PDF); el
+  resto `str`.
 - `chars` = `len(texto)` sobre el **texto limpio** (no tiene por qué coincidir
   con la columna `chars` de la matriz EDA, que se calculó pre-limpieza).
+- `texto` no conserva la cabecera `ARTÍCULO N: …` (pasa a `titulo`/`canonico`),
+  aunque el PDF la traiga en la misma línea que el cuerpo.
+
+#### Sub-documentos: por qué existe `documento`
+
+Un PDF del Depósito puede traer más de un documento de depósito pegado, y cada
+uno reinicia su numeración de artículos:
+
+| PDF | Códigos de depósito reales dentro | Sub-docs |
+|---|---|---|
+| `POL320190074.pdf` (72p) | `POL320190074` (pág 1–15) + `POL320130223` (pág 16–72) | 2 |
+| `POL320200071.pdf` (25p) | `POL320200071` (pág 1–16) + `POL320160108` (pág 17–25) | 2 |
+| los otros 7 | uno solo, igual al nombre del archivo | 1 |
+
+Son **9 archivos pero 10 códigos de depósito reales**: `POL320160108`
+("SEGURO INDIVIDUAL DE ENFERMEDADES GRAVES") no existe como archivo propio.
+
+Un sub-documento arranca cuando ocurre cualquiera de estas dos señales:
+
+1. Una **marca de depósito** (`Incorporada al Depósito de Pólizas bajo el código
+   POL…`) con código distinto → el artículo pasa al sub-documento real que abre.
+2. Un **reinicio de numeración** (el número de artículo no crece respecto del
+   anterior) → las cláusulas adicionales del Depósito también reinician en 1 sin
+   traer código propio (p. ej. `POL320190074.pdf` pág 11, "EXONERACIÓN DE PAGO
+   DE PRIMAS POR FALLECIMIENTO…"). El sub-documento implícito **hereda** el
+   código del anterior y sigue vigente hasta que se cruce otra marca.
+
+`documento` se renumera 1..n en orden de aparición dentro de cada PDF.
+
+#### Limpieza aplicada (`clean_article_text`)
+
+Los 5 casos de `app/data/parser.py` están implementados porque se **observaron**
+en el corpus, no por checklist. Cada uno tiene asserts en `scripts/test_parser.py`:
+
+1. `\r\n`/`\r` → `\n`.
+2. No imprimibles → **espacio**, nunca borrado (borrarlos pegaría palabras de
+   páginas distintas; el salto de página de PyMuPDF es `\x0c`). Solo aparecen en
+   `POL320200214` art. 20 (domicilio), cuyo PDF además trae una tabla de basura
+   binaria: el texto legible sobrevive (436 chars), la basura no se puede
+   recuperar y queda como ruido del PDF de origen.
+3. Cabecera `ARTÍCULO N: …` fuera del cuerpo.
+4. Colapsado de espacios múltiples, tabs y líneas en blanco (se preserva una
+   línea en blanco entre párrafos: hay artículos con 812/968 líneas vacías).
+5. **Guiones colgantes de fin de línea** → se quita el guion y se conserva el
+   salto. Solo aplica a guiones sueltos al final de la línea con blanco antes
+   (20 casos, todos en `POL320200071`), y **ninguno parte una palabra**, así que
+   no hay hyphenación real que unir. Compuestos reales (`temporo-mandibulares`,
+   `dermo-cosméticos`, `pre-autorización`, `COVID-19`, `auto-provocadas`) van en
+   medio de la línea y quedan intactos.
+6. **Dedup de stopwords** (`de de` → `de`). Solo stopwords y solo la misma
+   palabra repetida, para no tocar repeticiones legítimas ("diez diez"). El borde
+   "deducible" no se parte.
+
+Lo que **no** se hace, a propósito: no se repara el texto basura del PDF, no se
+unes palabras partidas y no se corrigen tildes (el pipeline de embeddings es el
+que las normaliza, y el `texto` se conserva fiel al documento).
 - `texto` = cuerpo del artículo luego de los 5 casos de limpieza, **sin** la
   línea de cabecera (esa va a `titulo`/`canonico`).
 - Validación (en #4): 227 líneas; `(poliza, articulo, canonico)` consistente con
@@ -57,8 +127,10 @@ Una línea JSON por chunk, en formato `Document` de LangChain:
   "page_content": "…fragmento del artículo…",
   "metadata": {
     "poliza": "POL320130223",
+    "documento": 1,
     "ramo": "salud",
     "año": "2013",
+    "familia": "colectivo_complementario",
     "articulo": 2,
     "titulo_canonico": "cobertura",
     "pagina": 1,
@@ -71,9 +143,10 @@ Reglas:
 
 - El splitter **se aplica por artículo** (fuente: `articulos.jsonl`): un chunk
   **nunca cruza de artículo**.
-- `chunk_index` = índice 0-based **dentro de cada `(poliza, articulo)`**.
+- `chunk_index` = índice 0-based **dentro de cada `(poliza, documento, articulo)`**.
 - Metadata **propagada** desde `articulos.jsonl` mapeando `canonico` →
-  `titulo_canonico`. `ramo`/`año` no se re-decodifican.
+  `titulo_canonico`. `ramo`/`año`/`familia`/`documento` no se re-derivan.
+- `documento` **viaja al chunk**: es parte de la clave única del chunk (ver 1.1).
 - Defaults MVP (justificados en el PR de #7; revisables en el benchmark
   post-MVP): `RecursiveCharacterTextSplitter`, separadores
   `["\n\n", "\n", ".", " ", ""]`, **`chunk_size=1000`**, **`chunk_overlap=150`**.
@@ -88,9 +161,10 @@ Reglas:
 def search(query: str, top_k: int = 5) -> list[dict]:
     ...
     # cada dict: {"page_content": str,
-    #             "metadata": {"poliza": str, "ramo": str, "año": str,
-    #                          "articulo": int, "titulo_canonico": str,
-    #                          "pagina": int, "chunk_index": int},
+    #             "metadata": {"poliza": str, "documento": int, "ramo": str,
+    #                          "año": str, "familia": str, "articulo": int,
+    #                          "titulo_canonico": str, "pagina": int,
+    #                          "chunk_index": int},
     #             "score": float}
 ```
 
@@ -98,8 +172,11 @@ def search(query: str, top_k: int = 5) -> list[dict]:
   distancia **Cosine**.
 - Payload por punto: la metadata del contrato 1.2 + `page_content` (para
   armar contexto/trazabilidad sin re-consultas).
-- `point_id` determinístico `uuid5(POLIZA|articulo|chunk_index)` → el index
-  build es **idempotente** (re-correr no duplica).
+- `point_id` determinístico `uuid5(POLIZA|documento|articulo|chunk_index)` → el
+  index build es **idempotente** (re-correr no duplica) y **sin colisiones**:
+  `(poliza, articulo)` a secas colisionaba 37 veces sobre 227 artículos porque
+  los PDFs traen varias pólizas pegadas con la numeración reiniciada (ver 1.1),
+  y Qdrant haría upsert sobre IDs repetidos perdiendo artículos en silencio.
 - Los metadatos **viajan con el chunk** siempre (lo verifica #20).
 
 ---

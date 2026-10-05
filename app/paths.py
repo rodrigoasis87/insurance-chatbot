@@ -7,6 +7,8 @@ RAW_PDFS_DIR = DATA_DIR / "raw_pdfs"
 PROCESSED_DIR = DATA_DIR / "processed"
 INDEXES_DIR = DATA_DIR / "indexes"
 
+ARTICULOS_JSONL = PROCESSED_DIR / "articulos.jsonl"
+
 DOCS_DIR = PROJECT_ROOT / "docs"
 EDA_DIR = DOCS_DIR / "eda"
 REPORT_PATH = DOCS_DIR / "EDA.md"
