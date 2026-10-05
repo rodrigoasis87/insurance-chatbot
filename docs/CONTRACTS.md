@@ -57,6 +57,7 @@ Una línea JSON por chunk, en formato `Document` de LangChain:
   "page_content": "…fragmento del artículo…",
   "metadata": {
     "poliza": "POL320130223",
+    "article_index": 0,
     "ramo": "salud",
     "año": "2013",
     "articulo": 2,
@@ -71,7 +72,10 @@ Reglas:
 
 - El splitter **se aplica por artículo** (fuente: `articulos.jsonl`): un chunk
   **nunca cruza de artículo**.
-- `chunk_index` = índice 0-based **dentro de cada `(poliza, articulo)`**.
+- `article_index` = índice 0-based de la aparición del artículo dentro de cada
+  póliza. Permite distinguir artículos numerados repetidamente en documentos
+  compuestos, como `POL320190074`.
+- `chunk_index` = índice 0-based dentro de cada `(poliza, article_index)`.
 - Metadata **propagada** desde `articulos.jsonl` mapeando `canonico` →
   `titulo_canonico`. `ramo`/`año` no se re-decodifican.
 - Defaults MVP (justificados en el PR de #7; revisables en el benchmark
@@ -89,8 +93,9 @@ def search(query: str, top_k: int = 5) -> list[dict]:
     ...
     # cada dict: {"page_content": str,
     #             "metadata": {"poliza": str, "ramo": str, "año": str,
-    #                          "articulo": int, "titulo_canonico": str,
-    #                          "pagina": int, "chunk_index": int},
+    #                          "article_index": int, "articulo": int,
+    #                          "titulo_canonico": str, "pagina": int,
+    #                          "chunk_index": int},
     #             "score": float}
 ```
 
@@ -98,7 +103,7 @@ def search(query: str, top_k: int = 5) -> list[dict]:
   distancia **Cosine**.
 - Payload por punto: la metadata del contrato 1.2 + `page_content` (para
   armar contexto/trazabilidad sin re-consultas).
-- `point_id` determinístico `uuid5(POLIZA|articulo|chunk_index)` → el index
+- `point_id` determinístico `uuid5(POLIZA|article_index|chunk_index)` → el index
   build es **idempotente** (re-correr no duplica).
 - Los metadatos **viajan con el chunk** siempre (lo verifica #20).
 
