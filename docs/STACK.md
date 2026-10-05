@@ -30,9 +30,9 @@ Elasticsearch, OpenAI, etc. Requisitos del equipo:
 | Componente | Elección | Versión / modelo |
 |---|---|---|
 | Framework RAG + Agentes | **LangChain** | `langchain` + `langgraph` (agentes) |
-| LLM (generación) | **Ollama (docker compose)** | `qwen3:4b` (Q4, ~2.5 GB) |
-| Embeddings | **Ollama (docker compose)** | `nomic-embed-text:latest` (768d, ~274 MB) |
-| Vector store | **Qdrant via Docker** | imagen `qdrant/qdrant:v1.15.0` |
+| LLM (generación) | **Ollama (docker compose)** | `qwen3:4b-instruct` (Q4, ~2.5 GB) |
+| Embeddings | **Ollama (docker compose)** | `qwen3-embedding:0.6b` (1024d, multilingüe, ~639 MB) |
+| Vector store | **Qdrant via Docker** | imagen `qdrant/qdrant:v1.19.1` |
 | Búsqueda web | **DuckDuckGo** | `duckduckgo-search` (sin key) |
 | UI | **Chainlit** | `chainlit` |
 | PDF | **PyMuPDF** | `pymupdf` |
@@ -43,6 +43,20 @@ Elasticsearch, OpenAI, etc. Requisitos del equipo:
 > Los modelos se bajan al volumen `ollama_models` con `docker compose exec ollama
 > ollama pull qwen3:4b` (y `nomic-embed-text`). Onboarding completo en
 > `scripts/setup.sh`. Imágenes **pinneadas** (no `:latest`) por reproducibilidad.
+
+> **Actualización (2026-10-01, #9):** embeddings `nomic-embed-text` reemplazado por
+> `qwen3-embedding:0.6b` (1024d, multilingüe). Su model card indica que nomic es
+> solo inglés, y en el test de retrieval en español (`scripts/test_vectordb.py`)
+> sacó 3/4 aun con sus prefijos; `qwen3-embedding:0.6b` y `bge-m3` sacaron 4/4, y
+> qwen3 separó mejor la respuesta correcta (brecha media 0.29 vs 0.14) con la mitad
+> de tamaño. El LLM pasa a `qwen3:4b-instruct`: en Ollama `qwen3:4b` es la variante
+> thinking-2507, que siempre razona y no se puede apagar.
+>
+> Qdrant sube de `v1.15.0` a `v1.19.1`, la misma versión que `qdrant-client`
+> (con 1.15 el cliente avisaba que el servidor era incompatible). Qdrant no
+> permite saltar versiones menores sobre datos existentes: como la colección se
+> regenera desde `chunks.jsonl`, lo simple es borrar el volumen `qdrant_data` y
+> volver a indexar (ver README).
 
 Dependencias PyPI a agregar con `uv`:
 
@@ -113,6 +127,8 @@ bash scripts/setup.sh
 docker compose up -d                     # Qdrant (6333) + Ollama (11434)
 docker compose exec ollama ollama pull qwen3:4b
 docker compose exec ollama ollama pull nomic-embed-text
+docker compose exec ollama ollama pull qwen3:4b-instruct      # LLM del RAG (#9)
+docker compose exec ollama ollama pull qwen3-embedding:0.6b   # embeddings del RAG (#9)
 uv run python scripts/smoke_stack.py     # integración ChatOllama/OllamaEmbeddings/Qdrant
 ```
 
