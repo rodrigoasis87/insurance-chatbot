@@ -21,62 +21,15 @@ Reporte generado con `uv run python -m app.data.eda`.
 ## 2. Esqueleto estándar de artículos
 
 Las pólizas comparten el mismo esqueleto de artículos (reglas → cobertura →
-definiciones → … → cláusulas adicionales). Matriz de posiciones:
+definiciones → … → cláusulas adicionales). Matriz de posiciones, **una columna
+por código de depósito** (el corpus son 9 PDFs pero 10 códigos reales, y
+`POL320130223` aparece tanto en su archivo como dentro de `POL320190074.pdf`; cada
+columna muestra el primer sub-documento del código). Detalle por sub-documento:
+`docs/eda/polizas_estructura.csv`.
 
-| pos | POL120190177 | POL320130223 | POL320150503 | POL320180100 | POL320190074 | POL320200071 | POL320200214 | POL320210063 | POL320210210 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | reglas | reglas | reglas | reglas | reglas | reglas | reglas | reglas | reglas |
-| 2 | cobertura | cobertura | cobertura | cobertura | cobertura | cobertura | cobertura | cobertura | cobertura |
-| 3 | limitaciones | definiciones | limitaciones | limitaciones | definiciones | descripcion de coberturas | definiciones | primas | definiciones |
-| 4 | definiciones | monto maximo de reembolso | definiciones | definiciones | exclusiones | limitaciones | exclusiones | exclusiones | exclusiones |
-| 5 | exclusiones | duplicacion de beneficios | exclusiones | exclusiones | carencia | definiciones | deducible | denuncia de siniestro | carencia |
-| 6 | obligaciones | exclusiones | obligaciones | obligaciones | obligaciones | exclusiones | copago | otros seguros | obligaciones |
-| 7 | declaraciones | riesgos cubiertos | declaraciones | declaraciones | declaraciones | obligaciones | obligaciones | terminacion | declaraciones |
-| 8 | primas | obligaciones | primas | primas | primas | declaraciones | declaraciones | vigencia | primas |
-| 9 | denuncia de siniestro | declaraciones | denuncia de siniestro | denuncia de siniestro | beneficiarios | vigencia | agravacion del riesgo | deducible | beneficiarios |
-| 10 | calculo de gastos | beneficiarios | calculo de gastos | calculo de gastos | denuncia de siniestro | primas | primas | rehabilitacion | denuncia de siniestro |
-| 11 | liquidacion de gastos | primas | liquidacion de gastos | liquidacion de gastos | vigencia | denuncia de siniestro | otros seguros | controversias | vigencia |
-| 12 | deducible | denuncia de siniestro | deducible | deducible | comunicaciones | calculo de gastos | denuncia de siniestro | comunicaciones | comunicaciones |
-| 13 | vigencia | vigencia | vigencia | vigencia | controversias | terminacion | vigencia | — | controversias |
-| 14 | cobertura | incorporacion | cobertura | cobertura | clausulas adicionales | impuestos | terminacion | — | clausulas adicionales |
-| 15 | terminacion | unidad del contrato | terminacion | terminacion | domicilio | unidad del contrato | modificaciones | — | domicilio |
-| 16 | ajuste de la prima | comunicaciones | ajuste de la prima | ajuste de la prima | cobertura | comunicaciones | pais de residencia | — | — |
-| 17 | unidad del contrato | controversias | unidad del contrato | unidad del contrato | exclusiones | controversias | comunicaciones | — | — |
-| 18 | rehabilitacion | domicilio | rehabilitacion | rehabilitacion | carencia | retracto | controversias | — | — |
-| 19 | impuestos | clausulas adicionales | impuestos | impuestos | beneficiarios | domicilio | clausulas adicionales | — | — |
-| 20 | comunicaciones | — | comunicaciones | comunicaciones | denuncia de siniestro | clausulas adicionales | domicilio | — | — |
-| 21 | controversias | — | controversias | controversias | Cláusulas Aplicables | reglas | — | — | — |
-| 22 | clausulas adicionales | — | clausulas adicionales | clausulas adicionales | reglas | cobertura | — | — | — |
-| 23 | domicilio | — | domicilio | domicilio | cobertura | limitaciones | — | — | — |
-| 24 | — | — | — | — | definiciones | exclusiones | — | — | — |
-| 25 | — | — | — | — | monto maximo de reembolso | obligaciones | — | — | — |
-| 26 | — | — | — | — | duplicacion de beneficios | declaraciones | — | — | — |
-| 27 | — | — | — | — | exclusiones | vigencia | — | — | — |
-| 28 | — | — | — | — | riesgos cubiertos | primas | — | — | — |
-| 29 | — | — | — | — | obligaciones | denuncia de siniestro | — | — | — |
-| 30 | — | — | — | — | declaraciones | denuncia de siniestro | — | — | — |
-| 31 | — | — | — | — | beneficiarios | denuncia de siniestro | — | — | — |
-| 32 | — | — | — | — | primas | terminacion | — | — | — |
-| 33 | — | — | — | — | denuncia de siniestro | rehabilitacion | — | — | — |
-| 34 | — | — | — | — | vigencia | impuestos | — | — | — |
-| 35 | — | — | — | — | incorporacion | unidad del contrato | — | — | — |
-| 36 | — | — | — | — | unidad del contrato | comunicaciones | — | — | — |
-| 37 | — | — | — | — | comunicaciones | controversias | — | — | — |
-| 38 | — | — | — | — | controversias | retracto | — | — | — |
-| 39 | — | — | — | — | domicilio | domicilio | — | — | — |
-| 40 | — | — | — | — | clausulas adicionales | definiciones | — | — | — |
-| 41 | — | — | — | — | cobertura | — | — | — | — |
-| 42 | — | — | — | — | exclusiones | — | — | — | — |
-| 43 | — | — | — | — | carencia | — | — | — | — |
-| 44 | — | — | — | — | beneficiarios | — | — | — | — |
-| 45 | — | — | — | — | denuncia de siniestro | — | — | — | — |
-| 46 | — | — | — | — | Cláusulas Aplicables | — | — | — | — |
-| 47 | — | — | — | — | cobertura | — | — | — | — |
-| 48 | — | — | — | — | definiciones | — | — | — | — |
-| 49 | — | — | — | — | exclusiones | — | — | — | — |
-| 50 | — | — | — | — | denuncia de siniestro | — | — | — | — |
-| 51 | — | — | — | — | terminacion | — | — | — | — |
-| 52 | — | — | — | — | Cláusulas Aplicables | — | — | — | — |
+| pos | POL120190177 | POL320130223 | POL320150503 | POL320160108 | POL320180100 | POL320190074 | POL320200071 | POL320200214 | POL320210063 | POL320210210 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | reglas | reglas | reglas | reglas | reglas | reglas | reglas | reglas | reglas | reglas |
 
 ## 3. Deep-dive · Artículo 2: Cobertura (pólizas de salud)
 
@@ -93,7 +46,7 @@ definiciones → … → cláusulas adicionales). Matriz de posiciones:
 
 ## 4. Tamaño de los artículos (insumo #7)
 
-Longitud por artículo (chars): min **107** · mediana **1199** · max **25715** (n=227)
+Longitud por artículo (chars): min **90** · mediana **1106** · max **25420** (n=227)
 
 ## 5. Hallazgos
 

@@ -17,8 +17,10 @@ from app.rag.vectordb import get_vector_store
 def make_chunk(articulo: int = 2, chunk_index: int = 0, **meta: Any) -> dict[str, Any]:
     metadata = {
         "poliza": "POL320130223",
+        "documento": 1,
         "ramo": "salud",
         "año": "2013",
+        "familia": "colectivo_complementario",
         "articulo": articulo,
         "titulo_canonico": "cobertura",
         "pagina": 1,
@@ -106,6 +108,7 @@ def test_point_id_is_deterministic_and_unique() -> None:
     a = make_chunk()["metadata"]
     assert chunk_point_id(a) == chunk_point_id(dict(a))
     assert chunk_point_id(a) != chunk_point_id({**a, "chunk_index": 1})
+    assert chunk_point_id(a) != chunk_point_id({**a, "documento": 2})
 
 
 def test_build_index_is_idempotent(tmp_path: Path, store: QdrantVectorStore) -> None:
