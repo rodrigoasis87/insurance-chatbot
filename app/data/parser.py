@@ -545,7 +545,7 @@ def parse_corpus(pdf_dir: Path | str | None = None) -> list[dict[str, Any]]:
     """Parsea el corpus de ``pdf_dir`` a registros de articulo.
 
     Un registro por articulo, con las claves de ``docs/CONTRACTS.md`` seccion 1.1:
-    ``poliza``, ``documento``, ``ramo``, ``anio``, ``familia``, ``articulo``,
+    ``poliza``, ``documento``, ``ramo``, ``año``, ``familia``, ``articulo``,
     ``titulo``, ``canonico``, ``pagina``, ``chars`` y ``texto``.
 
     - ``poliza`` es el **codigo de deposito real** del sub-documento, que puede
@@ -581,7 +581,7 @@ def parse_corpus(pdf_dir: Path | str | None = None) -> list[dict[str, Any]]:
                         "poliza": sub.codigo,
                         "documento": sub.ordinal,
                         "ramo": sub.ramo,
-                "año": sub.anio,
+                        "año": sub.anio,
                         "familia": sub.familia,
                         "articulo": article.number,
                         "titulo": article.title,
