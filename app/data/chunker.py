@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import defaultdict
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
@@ -22,8 +21,10 @@ SEPARATORS = ["\n\n", "\n", ".", " ", ""]
 
 _REQUIRED_TYPES: dict[str, type] = {
     "poliza": str,
+    "documento": int,
     "ramo": str,
     "año": str,
+    "familia": str,
     "articulo": int,
     "canonico": str,
     "pagina": int,
@@ -91,12 +92,8 @@ def iter_chunks(
 ) -> Iterator[dict[str, Any]]:
     """Yield chunks while keeping each article occurrence isolated."""
     splitter = splitter or make_splitter()
-    article_indexes: defaultdict[str, int] = defaultdict(int)
-
     for article in articles:
         policy = article["poliza"]
-        article_index = article_indexes[policy]
-        article_indexes[policy] += 1
 
         text_chunks = splitter.split_text(article["texto"])
         if not text_chunks:
@@ -109,9 +106,10 @@ def iter_chunks(
                 "page_content": page_content,
                 "metadata": {
                     "poliza": policy,
-                    "article_index": article_index,
+                    "documento": article["documento"],
                     "ramo": article["ramo"],
                     "año": article["año"],
+                    "familia": article["familia"],
                     "articulo": article["articulo"],
                     "titulo_canonico": article["canonico"],
                     "pagina": article["pagina"],

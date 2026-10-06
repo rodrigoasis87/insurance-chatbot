@@ -16,8 +16,10 @@ def article(
 ) -> dict:
     return {
         "poliza": policy,
+        "documento": 1,
         "ramo": "salud",
         "año": "2019",
+        "familia": "test",
         "articulo": number,
         "canonico": canonical,
         "pagina": page,
@@ -48,19 +50,19 @@ def test_chunks_overlap_only_within_one_article() -> None:
 def test_repeated_article_numbers_get_distinct_article_indexes() -> None:
     articles = [
         article("POL1", 1, "reglas", "reglas"),
-        article("POL1", 1, "cobertura", "cobertura"),
+        {**article("POL1", 1, "cobertura", "cobertura"), "documento": 2},
     ]
 
     chunks = list(iter_chunks(articles))
 
-    assert [chunk["metadata"]["article_index"] for chunk in chunks] == [0, 1]
+    assert [chunk["metadata"]["documento"] for chunk in chunks] == [1, 2]
     assert [chunk["metadata"]["titulo_canonico"] for chunk in chunks] == [
         "reglas",
         "cobertura",
     ]
 
 
-def test_article_index_resets_for_each_policy() -> None:
+def test_documento_is_preserved_for_each_policy() -> None:
     articles = [
         article("POL1", 1, "cobertura", "uno"),
         article("POL2", 1, "cobertura", "dos"),
@@ -68,7 +70,7 @@ def test_article_index_resets_for_each_policy() -> None:
 
     chunks = list(iter_chunks(articles))
 
-    assert [chunk["metadata"]["article_index"] for chunk in chunks] == [0, 0]
+    assert [chunk["metadata"]["documento"] for chunk in chunks] == [1, 1]
 
 
 def test_invalid_article_is_rejected(tmp_path: Path) -> None:

@@ -26,7 +26,7 @@ from typing import Any
 import pandas as pd
 import pymupdf
 
-from app.data.parser import RAW_PDFS_DIR, extract_articles, page_text, segment_text, unaccent
+from app.data.parser import RAW_PDFS_DIR, extract_articles, page_text, parse_corpus, segment_text, unaccent
 from app.paths import COBERTURA_MD, EDA_DIR, PROJECT_ROOT, REPORT_PATH, STRUCTURE_CSV, STRUCTURE_JSON
 
 
@@ -63,21 +63,24 @@ def corpus_profile() -> pd.DataFrame:
 
 
 def build_structure() -> list[dict[str, Any]]:
-    """Extrae la estructura articulo x poliza de todo el corpus."""
-    records: list[dict[str, Any]] = []
-    for path in sorted(RAW_PDFS_DIR.glob("*.pdf")):
-        for a in extract_articles(path):
-            records.append(
-                {
-                    "poliza": path.stem,
-                    "articulo": a.number,
-                    "titulo": a.title,
-                    "canonico": a.canonical,
-                    "pagina": a.page,
-                    "chars": a.chars,
-                }
-            )
-    return records
+    """Extrae la estructura articulo x poliza de todo el corpus.
+
+    Reusa ``app.data.parser`` (no reimplementa parsing): ``poliza`` es el codigo
+    de deposito REAL y ``documento`` el sub-documento, porque los PDFs traen
+    varias polizas pegadas y la numeracion de articulos reinicia en cada una.
+    """
+    return [
+        {
+            "poliza": r["poliza"],
+            "documento": r["documento"],
+            "articulo": r["articulo"],
+            "titulo": r["titulo"],
+            "canonico": r["canonico"],
+            "pagina": r["pagina"],
+            "chars": r["chars"],
+        }
+        for r in parse_corpus(RAW_PDFS_DIR)
+    ]
 
 
 def cobertura_stats(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -123,10 +126,18 @@ def md_table(df: pd.DataFrame) -> str:
 
 
 def matriz_esqueleto(records: list[dict[str, Any]]) -> str:
-    """Matriz poliza x posicion de cada articulo canonico."""
+    """Matriz poliza x posicion de cada articulo canonico.
+
+    Una columna por **codigo de deposito**, no por PDF: como un PDF puede traer
+    varias polizas pegadas (``POL320130223`` esta tanto en su archivo como dentro
+    de ``POL320190074.pdf``), se muestran los articulos del **primer**
+    sub-documento de cada codigo. Para el detalle completo por sub-documento
+    esta ``docs/eda/polizas_estructura.csv``.
+    """
     df = pd.DataFrame(records)
+    primeros = df.sort_values(["poliza", "documento"]).groupby("poliza", as_index=False).first()
     pols = sorted(df["poliza"].unique())
-    widths = {p: df.loc[df["poliza"] == p, "canonico"].tolist() for p in pols}
+    widths = {p: primeros.loc[primeros["poliza"] == p, "canonico"].tolist() for p in pols}
     max_w = max(len(v) for v in widths.values())
     lines = ["| pos | " + " | ".join(p for p in pols) + " |"]
     lines.append("| --- | " + " | ".join(["---"] * len(pols)) + " |")
@@ -156,7 +167,11 @@ Reporte generado con `uv run python -m app.data.eda`.
 ## 2. Esqueleto estándar de artículos
 
 Las pólizas comparten el mismo esqueleto de artículos (reglas → cobertura →
-definiciones → … → cláusulas adicionales). Matriz de posiciones:
+definiciones → … → cláusulas adicionales). Matriz de posiciones, **una columna
+por código de depósito** (el corpus son 9 PDFs pero 10 códigos reales, y
+`POL320130223` aparece tanto en su archivo como dentro de `POL320190074.pdf`; cada
+columna muestra el primer sub-documento del código). Detalle por sub-documento:
+`docs/eda/polizas_estructura.csv`.
 
 {matriz_esqueleto(records)}
 
