@@ -33,7 +33,7 @@ Elasticsearch, OpenAI, etc. Requisitos del equipo:
 | LLM (generación) | **Ollama (docker compose)** | `qwen3:4b-instruct` (Q4, ~2.5 GB) |
 | Embeddings | **Ollama (docker compose)** | `qwen3-embedding:0.6b` (1024d, multilingüe, ~639 MB) |
 | Vector store | **Qdrant via Docker** | imagen `qdrant/qdrant:v1.19.1` |
-| Búsqueda web | **DuckDuckGo** | `duckduckgo-search` (sin key) |
+| Búsqueda web | **ddgs** (metabuscador: DuckDuckGo, Yahoo, etc.) | `ddgs` (sin key) |
 | UI | **Chainlit** | `chainlit` |
 | PDF | **PyMuPDF** | `pymupdf` |
 | API | **FastAPI** + `uvicorn` | — |
@@ -64,13 +64,22 @@ Elasticsearch, OpenAI, etc. Requisitos del equipo:
 > regenera desde `chunks.jsonl`, lo simple es borrar el volumen `qdrant_data` y
 > volver a indexar (ver README).
 
+> **Actualización (2026-10-05, #8):** `duckduckgo-search` reemplazado por `ddgs`,
+> su sucesor (mismo autor, gratis y sin key). La versión 8.1.1 avisaba en cada uso
+> que el paquete fue renombrado y, en la prueba con 4 consultas del rubro
+> (`region="cl-es"`), dio 0/4 resultados útiles. `ddgs` con `backend="auto"`
+> dio 4/4 (fuentes chilenas: CMF, comparadores, aseguradoras) en 1.7–7 s. Ojo:
+> `auto` combina varios buscadores, no solo DuckDuckGo. Con ráfagas de consultas
+> (~1 s entre cada una) los buscadores devuelven vacío sin avisar: en uso normal
+> (≤1 búsqueda por pregunta) no pasa, pero conviene no encadenar consultas en la demo.
+
 Dependencias PyPI a agregar con `uv`:
 
 ```bash
 uv add langchain langchain-ollama langchain-community langgraph
 uv add qdrant-client langchain-qdrant
 uv add chainlit fastapi uvicorn
-uv add duckduckgo-search pymupdf pandas tqdm
+uv add ddgs pymupdf pandas tqdm
 ```
 
 ## 4. Justificación por componente
