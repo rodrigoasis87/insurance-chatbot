@@ -10,9 +10,7 @@ echo "== [2/4] Levantando servicios (Qdrant + Ollama) =="
 docker compose up -d
 
 echo "== [3/4] Bajando modelos de Ollama (una sola vez por maquina) =="
-docker compose exec ollama ollama pull qwen3:4b
 docker compose exec ollama ollama pull qwen3:4b-instruct   # LLM del RAG (#9)
-docker compose exec ollama ollama pull nomic-embed-text
 docker compose exec ollama ollama pull qwen3-embedding:0.6b   # embeddings del RAG (#9)
 
 echo "== [4/4] Smoke test del stack =="

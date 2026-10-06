@@ -45,8 +45,6 @@ O manualmente, paso a paso:
 uv sync                       # instala dependencias y crea .venv
 cp .env.example .env          # completa tus credenciales AWS S3
 docker compose up -d          # levanta Qdrant (6333) y Ollama (11434)
-docker compose exec ollama ollama pull qwen3:4b
-docker compose exec ollama ollama pull nomic-embed-text
 docker compose exec ollama ollama pull qwen3:4b-instruct      # LLM del RAG (#9)
 docker compose exec ollama ollama pull qwen3-embedding:0.6b   # embeddings del RAG (#9)
 uv run python scripts/smoke_stack.py   # valida el stack

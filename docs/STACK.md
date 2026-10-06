@@ -41,7 +41,7 @@ Elasticsearch, OpenAI, etc. Requisitos del equipo:
 > **Actualización (2026-09-28):** Ollama corre como servicio de **docker compose**
 > (`ollama/ollama:0.24.0`) para que todo el equipo tenga el mismo entorno.
 > Los modelos se bajan al volumen `ollama_models` con `docker compose exec ollama
-> ollama pull qwen3:4b` (y `nomic-embed-text`). Onboarding completo en
+> ollama pull qwen3:4b-instruct` (y `qwen3-embedding:0.6b`). Onboarding completo en
 > `scripts/setup.sh`. Imágenes **pinneadas** (no `:latest`) por reproducibilidad.
 
 > **Actualización (2026-09-30):** el **MVP incluye agente + búsqueda web**.
@@ -78,12 +78,14 @@ uv add duckduckgo-search pymupdf pandas tqdm
 - **LangChain:** entregable obligatorio *"Use of LangChain Agents and Tools"* para
   el ruteo (pólizas / noticias / "no sé"). Los agentes modernos se construyen con
   LangGraph (`create_react_agent`).
-- **Ollama `qwen3:4b`:** punto medio velocidad/calidad en CPU-only. `qwen3:8b` se
-  descartó por latencia (>15 s en este hardware); `llama3.2:3b` por peor desempeño
-  en español legal. `4b` balancea ambos.
-- **Embeddings `nomic-embed-text`:** pequeño y veloz; con `NomicEmbedText`,
-  `ollama serve` ya disponible. Upgrade medible a `bge-m3` (1024d, multilingüe) si
-  el retrieval no rinde (ver issue #7).
+- **Ollama `qwen3:4b-instruct`:** punto medio velocidad/calidad en CPU-only.
+  `qwen3:8b` se descartó por latencia (>15 s en este hardware); `llama3.2:3b` por
+  peor desempeño en español legal. Se usa la variante **instruct** porque
+  `qwen3:4b` en Ollama es thinking-2507: siempre razona y no se puede apagar
+  (nota 2026-10-01).
+- **Embeddings `qwen3-embedding:0.6b`:** 1024d, multilingüe y ~639 MB; reemplazó a
+  `nomic-embed-text` (solo inglés) tras medir el retrieval en español (4/4 vs 3/4).
+  Alternativa evaluada: `bge-m3`.
 - **Qdrant (Docker):** vector store real con API REST/gRPC; prepara el entregable
   de docker-compose (#12). Chroma (embedded) queda como alternativa si hubiera
   presión de RAM en dev.
@@ -131,8 +133,6 @@ bash scripts/setup.sh
 
 # Manualmente:
 docker compose up -d                     # Qdrant (6333) + Ollama (11434)
-docker compose exec ollama ollama pull qwen3:4b
-docker compose exec ollama ollama pull nomic-embed-text
 docker compose exec ollama ollama pull qwen3:4b-instruct      # LLM del RAG (#9)
 docker compose exec ollama ollama pull qwen3-embedding:0.6b   # embeddings del RAG (#9)
 uv run python scripts/smoke_stack.py     # integración ChatOllama/OllamaEmbeddings/Qdrant

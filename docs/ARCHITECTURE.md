@@ -19,8 +19,8 @@ MVP y el flujo con las dos extensiones de futuro.
 |---|---|---|---|
 | Datos | D1 · Captura y limpieza | PDFs (S3) → parser → `articulos.jsonl` (227 art. + metadata) | #4 |
 | Datos | D2 · Chunking | chunks 1000/150 que nunca cruzan artículo → `chunks.jsonl` | #7 |
-| Motor RAG | R1 · Indexación y retrieval | embeddings `nomic-embed-text` + Qdrant `polizas` (768d) + `search()` | #9 |
-| Motor RAG | R2 · Generación con citas / agente | `query()` ≤2 llamadas LLM (`qwen3:4b`) + `web_search` | #17, #8 |
+| Motor RAG | R1 · Indexación y retrieval | embeddings `qwen3-embedding:0.6b` + Qdrant `polizas` (1024d) + `search()` | #9 |
+| Motor RAG | R2 · Generación con citas / agente | `query()` ≤2 llamadas LLM (`qwen3:4b-instruct`) + `web_search` | #17, #8 |
 | Generación | R3 · Recombinación DEM (**demo v0**) | `app/generation/` → `/policy-recombine` → **PDF borrador DEM** (bloques canónicos + perfil sin PII; sin emisión) | #23 |
 | Exposición | E1 · API y UI | FastAPI delgado + Chainlit con fuentes visibles | #16, #18 |
 | Garantías | G1 · QA, eval, ops | pytest con mocks · golden set · compose/README/demo | #20, #19, #21, #22 |
@@ -41,9 +41,10 @@ API, UI). Detalle del runtime en `docs/CONTRACTS.md` §4.
 │                                                                          │
 │  S3 ──► data/raw_pdfs ──► Parser ──► articulos.jsonl (227 registros)    │
 │          (9 PDFs,         extract_articles ·     con metadata:           │
-│           gitignored)     segment_text ·         poliza · ramo · año ·   │
-│                           canonical_title)       canonico · pagina ·     │
-│                           + limpieza (5 reglas)  chars                    │
+│           gitignored)     segment_text ·         poliza · documento ·    │
+│                           canonical_title)       ramo · año · familia ·  │
+│                           + limpieza (5 reglas)  articulo · canonico ·   │
+│                                                   pagina · chars          │
 │                                             │                            │
 │                                             ▼                            │
 │                        Chunking (#7): chunk 1000 · overlap 150           │
@@ -52,12 +53,12 @@ API, UI). Detalle del runtime en `docs/CONTRACTS.md` §4.
 │                                             ▼                            │
 │                                        chunks.jsonl                       │
 └─────────────────────────────────────────────┬────────────────────────────┘
-                                              │ embeddings nomic-embed-text
-                                              │ (Ollama local, 768 dims)
+                                              │ embeddings qwen3-embedding:0.6b
+                                              │ (Ollama local, 1024 dims)
 ┌─────────────────────────────────────────────▼────────────────────────────┐
 │                    MOTOR RAG · R1 + R2            (#9, #17, #8)          │
 │                                                                          │
-│   Qdrant · colección `polizas` (coseno · 768d)                           │
+│   Qdrant · colección `polizas` (coseno · 1024d)                          │
 │     index build idempotente (point_id determinístico)      [R1]          │
 │              │                                                        │
 │              ▼                                                        │
@@ -67,7 +68,7 @@ API, UI). Detalle del runtime en `docs/CONTRACTS.md` §4.
 │   UMBRAL_SCORE: filtro hard gate en código      (bajo umbral: jamás      │
 │              │                                 entran al prompt)         │
 │              ▼                                                        │
-│   1.ª llamada LLM · qwen3:4b (local)                                    │
+│   1.ª llamada LLM · qwen3:4b-instruct (local)                            │
 │     respuesta grounded con citas [fuente: PÓLIZA · Art. N]    [R2]      │
 │              │                                                        │
 │              ├──¿el contexto responde?──────► answer +                  │
