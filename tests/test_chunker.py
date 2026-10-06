@@ -47,7 +47,7 @@ def test_chunks_overlap_only_within_one_article() -> None:
     assert [chunk["metadata"]["chunk_index"] for chunk in second] == list(range(len(second)))
 
 
-def test_repeated_article_numbers_get_distinct_article_indexes() -> None:
+def test_repeated_article_numbers_get_distinct_documents() -> None:
     articles = [
         article("POL1", 1, "reglas", "reglas"),
         {**article("POL1", 1, "cobertura", "cobertura"), "documento": 2},
