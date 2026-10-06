@@ -10,8 +10,10 @@ dependencies = [
     "duckduckgo-search>=8.1.1",
     "fastapi>=0.141.1",
     "langchain>=1.4.2",
+    "langchain-anthropic>=1.7.5",
     "langchain-community>=0.4.2",
     "langchain-ollama>=1.1.0",
+    "langchain-openai>=1.6.7",
     "langchain-qdrant>=1.1.0",
     "langchain-text-splitters>=1.1.2",
     "langgraph>=1.2.12",
@@ -26,4 +28,12 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+filterwarnings = [
+    # El cliente Qdrant en memoria (tests) ignora los payload indexes y avisa.
+    "ignore:Payload indexes have no effect:UserWarning",
 ]

@@ -99,7 +99,7 @@ def search(query: str, top_k: int = 5) -> list[dict]:
     #             "score": float}
 ```
 
-- Colección `polizas` · vectores **768 dims** (`nomic-embed-text`) ·
+- Colección `polizas` · vectores **1024 dims** (`qwen3-embedding:0.6b`) ·
   distancia **Cosine**.
 - Payload por punto: la metadata del contrato 1.2 + `page_content` (para
   armar contexto/trazabilidad sin re-consultas).

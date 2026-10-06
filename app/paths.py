@@ -7,6 +7,9 @@ RAW_PDFS_DIR = DATA_DIR / "raw_pdfs"
 PROCESSED_DIR = DATA_DIR / "processed"
 INDEXES_DIR = DATA_DIR / "indexes"
 
+# Salida de #7 y entrada del index build de #9 (docs/CONTRACTS.md 1.2).
+CHUNKS_JSONL = PROCESSED_DIR / "chunks.jsonl"
+
 DOCS_DIR = PROJECT_ROOT / "docs"
 EDA_DIR = DOCS_DIR / "eda"
 REPORT_PATH = DOCS_DIR / "EDA.md"
