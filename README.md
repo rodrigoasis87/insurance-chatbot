@@ -51,8 +51,9 @@ uv run python scripts/smoke_stack.py   # valida el stack
 uv run python -m app.data.download     # descarga los PDFs a data/raw_pdfs
 ```
 
-> Si tenés Ollama nativo instalado y corriendo, apagalo (`ollama stop`) para
-> no chocar con el puerto 11434 del contenedor.
+> Si tenés Ollama nativo instalado y corriendo, apagalo con `sudo systemctl stop
+> ollama` para no chocar con el puerto 11434 del contenedor. Ojo: `ollama stop`
+> solo descarga el modelo, el server sigue escuchando en 11434.
 
 **Si ya tenías Qdrant 1.15 corriendo:** la imagen pasó a `v1.19.1`, que no puede
 abrir los datos guardados por 1.15 (el contenedor se cae al arrancar). La colección
@@ -61,7 +62,7 @@ indexar. No uses `docker compose down -v`: también borra los modelos de Ollama.
 
 ```bash
 docker compose rm -s -f qdrant                   # detiene y borra solo el contenedor de Qdrant
-docker volume rm insurance-chatbot_qdrant_data   # nombre exacto en: docker volume ls
+docker volume rm "$(docker volume ls -q --filter name=qdrant_data)"   # prefijo = nombre del proyecto de compose (directorio), p. ej. finalproject_qdrant_data
 docker compose up -d qdrant                      # baja v1.19.1 y arranca limpio
 uv run python -m app.rag.indexer                 # vuelve a indexar chunks.jsonl
 ```
