@@ -4,8 +4,9 @@ Entrada: ``data/processed/chunks.jsonl`` (salida de #7, docs/CONTRACTS.md 1.2).
 Una linea JSON por chunk, en formato ``Document`` de LangChain::
 
     {"page_content": "...fragmento...",
-     "metadata": {"poliza": "POL320130223", "ramo": "salud", "año": "2013",
-                  "articulo": 2, "titulo_canonico": "cobertura",
+     "metadata": {"poliza": "POL320130223", "documento": 1, "ramo": "salud", "año": "2013",
+                  "familia": "colectivo_complementario", "articulo": 2,
+                  "titulo_canonico": "cobertura",
                   "pagina": 1, "chunk_index": 0}}
 
 Uso:
@@ -34,8 +35,10 @@ from app.rag.vectordb import get_client, get_vector_store
 # Campos obligatorios de la metadata de cada chunk y su tipo (contrato 1.2).
 CHUNK_METADATA_FIELDS: dict[str, type] = {
     "poliza": str,
+    "documento": int,
     "ramo": str,
     "año": str,
+    "familia": str,
     "articulo": int,
     "titulo_canonico": str,
     "pagina": int,
@@ -48,12 +51,12 @@ DEFAULT_BATCH_SIZE = 32
 
 
 def chunk_point_id(metadata: dict[str, Any]) -> str:
-    """ID deterministico del punto en Qdrant: ``uuid5("POLIZA|articulo|chunk_index")``.
+    """ID deterministico: ``uuid5("POLIZA|documento|articulo|chunk_index")``.
 
     El mismo chunk siempre recibe el mismo ID, asi re-correr el index build
     reemplaza los puntos en lugar de duplicarlos (docs/CONTRACTS.md 2).
     """
-    key = f"{metadata['poliza']}|{metadata['articulo']}|{metadata['chunk_index']}"
+    key = f"{metadata['poliza']}|{metadata['documento']}|{metadata['articulo']}|{metadata['chunk_index']}"
     return str(uuid.uuid5(uuid.NAMESPACE_URL, key))
 
 
@@ -91,7 +94,8 @@ def load_chunks(path: Path = CHUNKS_JSONL) -> list[Document]:
     Raises:
         FileNotFoundError: si el archivo no existe.
         ValueError: JSON invalido, campos faltantes o de otro tipo, chunks
-            repetidos (misma poliza + articulo + chunk_index) o archivo vacio.
+            repetidos (misma poliza + documento + articulo + chunk_index) o
+            archivo vacio.
     """
     path = Path(path)
     if not path.exists():
@@ -115,7 +119,8 @@ def load_chunks(path: Path = CHUNKS_JSONL) -> list[Document]:
             point_id = chunk_point_id(doc.metadata)
             if point_id in first_seen:
                 raise ValueError(
-                    f"linea {line_no}: chunk repetido (poliza, articulo, chunk_index), "
+                    f"linea {line_no}: chunk repetido "
+                    "(poliza, documento, articulo, chunk_index), "
                     f"ya aparece en la linea {first_seen[point_id]}"
                 )
             first_seen[point_id] = line_no

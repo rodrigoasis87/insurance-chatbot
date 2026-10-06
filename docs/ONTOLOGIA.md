@@ -78,24 +78,53 @@ Ramo = rama de negocio codificada en el código del Depósito (posiciones `3-4`)
 Regla de decodificación (una sola vez, en #4): `ramo = "salud" si código[3:5]=="32"
 else "accidentes"`.
 
-### 4.2 Familias de producto del corpus (9 moldes)
+### 4.2 Familias de producto del corpus (10 documentos de depósito)
 
-| Familia | Ramo | Pólizas | Cubre en esencia |
+Un PDF del Depósito puede traer **varias pólizas pegadas** y cada una reinicia
+su numeración de artículos, así que el corpus son **9 archivos pero 10 códigos
+de depósito reales** (`POL320160108` no tiene archivo propio). La unidad real es
+el **sub-documento**: `(código de depósito, ordinal dentro del PDF)`.
+Ver `docs/CONTRACTS.md` §1.1.
+
+| Familia (clave) | Ramo | Pólizas | Cubre en esencia |
 |---|---|---|---|
-| **Colectivo complementario de salud** | salud | `POL320130223` | Complemento de prestaciones para grupos/asociados |
-| **Prestaciones médicas derivadas de accidentes** | salud | `POL320150503`, `POL320180100` | Reembolso de gastos médicos por accidente |
-| **Prestaciones médicas de alto costo** | salud | `POL320190074`, `POL320200214`, `POL320210210` | Enfermedades/eventos de alto costo |
-| **Catastrófico individual por evento** | salud | `POL320200071` | Evento catastrófico único con deducible/copago |
-| **COVID-19 asociado** | salud | `POL320210063` | Cobertura COVID (molde con sintaxis de cabecera distinta) |
-| **Accidentes personales / reembolso gastos médicos** | accidentes | `POL120190177` | Rembolso de gastos médicos por accidentes personales |
+| **Colectivo complementario de salud** `colectivo_complementario` | salud | `POL320130223` | Complemento de prestaciones para grupos/asociados |
+| **Prestaciones médicas por accidente/enfermedad** `hospitalizacion_accidente_enfermedad` | salud | `POL320150503` | Reembolso de gastos médicos por accidente o enfermedad |
+| **Hospitalización quirúrgica de emergencia** `hospitalizacion_quirurgica_emergencia` | salud | `POL320180100` | Reembolso por hospitalización quirúrgica de emergencia |
+| **Prestaciones médicas de alto costo** `alto_costo` | salud | `POL320190074`, `POL320200214`, `POL320210210` | Enfermedades/eventos de alto costo |
+| **Catastrófico individual por evento** `catastrofico_individual` | salud | `POL320200071` | Evento catastrófico único con deducible/copago |
+| **Enfermedades graves (individual)** `enfermedades_graves` | salud | `POL320160108` | Capital fijo por diagnóstico de enfermedad grave |
+| **COVID-19 asociado** `covid` | salud | `POL320210063` | Cobertura COVID (molde con sintaxis de cabecera distinta) |
+| **Accidentes personales / reembolso gastos médicos** `accidentes_personales` | accidentes | `POL120190177` | Reembolso de gastos médicos por accidentes personales |
+
+Reglas de derivación (`app/data/parser.py:poliza_familia`):
+
+- Se decide por **keyword del título de portada del sub-documento**, nunca del
+  cuerpo: el cuerpo nombra "accidente" en artículos de cualquier póliza de salud
+  y contaminaría la clasificación.
+- Para el ramo `accidentes` la familia es directa (`accidentes_personales`).
+- El orden de `FAMILY_KEYWORDS` va de lo específico a lo general, y
+  `enfermedades_graves` va **antes** que `hospitalizacion_accidente_enfermedad`
+  a propósito: `POL320160108` se titula "SEGURO INDIVIDUAL DE ENFERMEDADES
+  GRAVES" y matchearía la familia equivocada con la keyword suelta
+  "enfermedad".
+- Sin match: `otra` + warning. El corpus actual da **8 familias, 0 fallback**.
+
+Notas de por qué hay dos familias de hospitalización separadas:
+
+- `POL320180100` se titula "…DERIVADAS DE **HOSPITALIZACIÓN QUIRÚRGICA DE
+  EMERGENCIA**" y su portada **no menciona "accidente"**: meterlo en la familia
+  de accidente/enfermedad exigiría clasificar por cuerpo, que es justo lo que
+  esta regla evita.
+- `POL320150503` sí dice "DERIVADAS DE **ACCIDENTE** Y ENFERMEDAD".
 
 - El **retrieval y el perfil son salud-céntricos**; la póliza de accidentes sirve
   para **probar generalización** del parser fuera del ramo 32.
 - **Multi-ramo** (sumar más ramos al catálogo) es una **evolución futura**
   (el motor no tiene lógica hard-coded por ramo).
 
-Fuente: `docs/EDA.md` §1 (perfil del corpus) y `AÑO`/`titulo_portada` de cada
-póliza.
+Fuente: `docs/EDA.md` §1 (perfil del corpus), `titulo_portada()` de cada
+sub-documento y `resolver_subdocumentos()` en `app/data/parser.py`.
 
 ---
 
@@ -104,11 +133,16 @@ póliza.
 ### 5.1 Jerarquía del documento
 
 ```
-Póliza (molde, código POL…)
- └─ Artículo  (unidad natural: `ARTÍCULO Nº NN: TÍTULO`, página 1-based)
+Sub-documento  (`poliza` = código de depósito real + `documento` = ordinal en el PDF)
+ └─ Artículo    (unidad natural: `ARTÍCULO Nº NN: TÍTULO`, página 1-based)
      └─ Cláusula canónica  (clave normalizada del título del artículo)
          └─ Chunk (fragmento del artículo; nunca cruza de artículo)
 ```
+
+El sub-documento es el nivel superior **porque el PDF no lo es**: los archivos
+del Depósito traen varias pólizas pegadas con la numeración reiniciada
+(§4.2). Por eso la clave única es `(poliza, documento, articulo)` y no
+`(poliza, articulo)`.
 
 Las **referencias inline** (`Artículo 2°, letra A, numeral 4…`) NO son cláusulas:
 no abren un nuevo artículo; se descartan en la segmentación.
@@ -174,9 +208,11 @@ Campos del contrato M1→M2 (`docs/CONTRACTS.md` §1). `ramo`/`año` se decodifi
 
 | Campo | Tipo | Ejemplo | Origen |
 |---|---|---|---|
-| `poliza` | str | `POL320130223` | Código del molde |
+| `poliza` | str | `POL320130223` | **Código de depósito real** del sub-documento (§4.2), no el nombre del PDF |
+| `documento` | int | `1` | Ordinal del sub-documento dentro del PDF; parte de la clave única |
 | `ramo` | str | `salud` | Regla de decodificación (heurística) |
 | `año` | str | `2013` | `"20"+código[6:8]` |
+| `familia` | str | `colectivo_complementario` | Keyword del título de portada (§4.2) |
 | `articulo` | int | `2` | Cabecera del artículo |
 | `titulo` | str | `COBERTURA` | Título limpio de la cabecera |
 | `canonico` | str | `cobertura` | Clave canónica (§5.2) |
@@ -314,8 +350,8 @@ Relaciones en forma de lista:
 |---|---|
 | §2 entidades | `docs/narrative.md` §2.1 |
 | §3 tipos de documento | `docs/narrative.md` §2.3 · `docs/ARCHITECTURE.md` §3/§5.2 · `docs/CONTRACTS.md` §4.1 |
-| §4 ramos y familias | `app/data/eda.py:45-51` · `docs/EDA.md` §1 · `docs/EDA.md` (títulos) |
-| §5 esqueleto y claves | `app/data/parser.py:36-72` · `docs/eda/polizas_estructura.csv` |
+| §4 ramos y familias | `app/data/parser.py:poliza_familia` · `app/data/parser.py:resolver_subdocumentos` · `docs/EDA.md` §1 (títulos de portada) |
+| §5 esqueleto y claves | `app/data/parser.py:TITLE_KEYWORDS` · `docs/eda/polizas_estructura.csv` |
 | §6 metadata | `docs/CONTRACTS.md` §1 y §2 |
 | §7 orígenes | `docs/narrative.md` §1 · `docs/CONTRACTS.md` §3 |
 | §8 perfil | `docs/narrative.md` §4 |

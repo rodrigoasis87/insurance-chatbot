@@ -68,6 +68,42 @@ docker compose up -d qdrant                      # baja v1.19.1 y arranca limpio
 uv run python -m app.rag.indexer                 # vuelve a indexar chunks.jsonl
 ```
 
+## Preparar los datos
+
+Después de descargar los PDFs, generar los artefactos procesados en este orden:
+
+```bash
+uv run python -m app.data.build_articulos  # PDFs → articulos.jsonl
+uv run python -m app.data.chunker          # articulos.jsonl → chunks.jsonl
+uv run python -m app.rag.indexer           # chunks.jsonl → Qdrant
+```
+
+Los archivos generados quedan en `data/processed/` y están ignorados por Git:
+
+```text
+data/processed/articulos.jsonl   # 227 artículos limpios
+data/processed/chunks.jsonl      # chunks de 1000 caracteres, overlap 150
+```
+
+Para validar el parser y ejecutar la suite de pruebas:
+
+```bash
+uv run python scripts/test_parser.py
+uv run pytest
+```
+
+También se pueden especificar rutas alternativas para los dos primeros pasos:
+
+```bash
+uv run python -m app.data.build_articulos \
+  --pdf-dir otro/directorio/con/pdfs \
+  --out otro/articulos.jsonl
+
+uv run python -m app.data.chunker \
+  --input otro/articulos.jsonl \
+  --output otro/chunks.jsonl
+```
+
 ## Estado
 
 - [x] Repo inicializado con uv, estructura modular y descarga S3
