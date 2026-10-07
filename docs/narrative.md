@@ -239,7 +239,7 @@ Garantías (G1) ─── valida/asegura ───┘
 | | **Chunking** | `articulos.jsonl` → `chunks.jsonl` (no cruzan artículo) | Trazabilidad + completud | #7 |
 | **Motor RAG** | **Indexación y retrieval** | chunks → Qdrant (`polizas`, 1024d, coseno) + `search()` | 0 alucinación + velocidad | #9 |
 | | **Generación con citas (agente)** | `query()` = agente ≤2 llamadas: retrieve → juzgar → (si falta, `web_search`) → `answer` + `sources[]` | Trazabilidad + 0 alucinación | #17, #8 |
-| **Generación** | **Recombinación DEM (demo v0)** | `app/generation/` → endpoint `/policy-recombine` + **PDF borrador DEM** (bloques canónicos + perfil sin PII; sin emisión) | Regla de negocio (núcleo del enunciado) | #23 |
+| **Generación** | **Recombinación DEM (demo v0)** | `app/generation/` → endpoint `/policy-recombine` + **PDF borrador DEM** (bloques canónicos + perfil sin PII; sin emisión) | Regla de negocio (núcleo del enunciado) | #36 |
 | **Exposición** | **API + UI** | FastAPI (`/chat`, `/health`, `/policies`, `/policy-recombine`) + Chainlit con fuentes visibles | Trazabilidad | #16, #18 |
 | **Garantías** | **QA, eval y ops** | pytest (mocks), eval golden set, compose de 1 comando | Seguridad + 0 alucinación **medidos** | #19, #20, #21, #22 |
 
@@ -276,4 +276,4 @@ prioridad protege.**
 Cambios respecto del deck actual (16→20): nuevas slides **4 (Mapa de actores)**,
 **6 (Perfil sin PII)**; Persona pasa a mostrar las **dos tareas**; Alcance suma
 los rangos de precios vía web; Exposición suma la **generación DEM v0**;
-Garantías absorbe la generación en el roadmap (#23).
+Garantías absorbe la generación en el roadmap (#36).

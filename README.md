@@ -20,15 +20,16 @@ Stack **100% local y gratuita** (ver `docs/STACK.md` — ADR-001):
 
 ```
 app/
-├── data/        # descarga, preprocesado y EDA
-├── retrieval/   # indexado y búsqueda
-├── generation/  # pipeline RAG + agentes
-├── api/         # FastAPI
-│   └── ui/      # interfaz de usuario
+├── data/        # descarga S3, parser, EDA y artefactos (PDFs → articulos.jsonl → chunks.jsonl)
+├── rag/         # retrieval: embeddings, indexer Qdrant, vectordb (search + colapso), config, llm
+├── generation/  # Recombinación DEM demo v0 (#36)
+├── api/         # FastAPI (#16)
+└── ui/          # interfaz de usuario (#18)
 data/
 ├── raw_pdfs/    # PDFs descargados (gitignored)
-├── processed/
-└── indexes/
+├── processed/   # articulos.jsonl, chunks.jsonl, umbral_raw.json (gitignored)
+├── indexes/     # reservado (vector stores locales si hicieran falta)
+└── generated/   # borradores DEM de prueba (gitignored)
 ```
 
 ## Setup
@@ -84,11 +85,18 @@ data/processed/articulos.jsonl   # 227 artículos limpios
 data/processed/chunks.jsonl      # chunks de 1000 caracteres, overlap 150
 ```
 
-Para validar el parser y ejecutar la suite de pruebas:
+El retrieval filtra por un score mínimo configurable (env `UMBRAL_SCORE`, default
+`0.60`) y colapsa resultados duplicados por `(poliza, articulo)`. La elección del
+umbral y cómo re-medirlo al cambiar de embeddings/chunking: `docs/umbral_score.md`
+(ADR-004).
+
+Para validar el parser, el retrieval y ejecutar la suite de pruebas:
 
 ```bash
-uv run python scripts/test_parser.py
-uv run pytest
+uv run python scripts/test_parser.py      # parser: 227 artículos + familias
+uv run python scripts/test_vectordb.py    # smoke del index/retrieval contra Qdrant
+uv run pytest                             # suite con mocks (sin Docker)
+uv run python scripts/analisis_umbral.py  # re-mide scores → data/processed/umbral_raw.json
 ```
 
 También se pueden especificar rutas alternativas para los dos primeros pasos:
@@ -103,13 +111,22 @@ uv run python -m app.data.chunker \
   --output otro/chunks.jsonl
 ```
 
+## Documentación
+
+- `docs/ARCHITECTURE.md` — arquitectura del MVP y post-MVP, con ADRs y estado por célula.
+- `docs/CONTRACTS.md` — contratos de datos, runtime y agente (`query()` ≤2 llamadas).
+- `docs/ONTOLOGIA.md` — ontología del dominio (claves, PII, intenciones).
+- `docs/narrative.md` — narrativa, actores y roadmap.
+- `docs/umbral_score.md` — `UMBRAL_SCORE` empírico (ADR-004).
+- `docs/STACK.md` (ADR-001) y `docs/adr/` (ADR-002…005) — decisiones de arquitectura.
+
 ## Estado
 
-- [x] Repo inicializado con uv, estructura modular y descarga S3
-- [x] Stack técnico definido (`docs/STACK.md` — ADR-001)
-- [ ] EDA y extracción de texto
-- [ ] Indexado y búsqueda (retrieval)
-- [ ] Pipeline RAG + agentes (pólizas / noticias web)
-- [ ] API FastAPI
-- [ ] UI
-- [ ] Docker
+- [x] Repo, stack técnico e infra Docker (Qdrant `v1.19.1` + Ollama) — ADR-001
+- [x] Datos: descarga S3, EDA, parser y artefactos (227 artículos · 758 chunks) — #4, #7
+- [x] Retrieval: indexado Qdrant + `search()` con colapso por `(poliza, articulo)` y `UMBRAL_SCORE` — #9 · ADR-002/003/004
+- [ ] RAG + agentes (pólizas / noticias web, ≤2 llamadas LLM) — #17, #8
+- [ ] Generación DEM (recombinación demo v0) — #36
+- [ ] API FastAPI — #16
+- [ ] UI — #18
+- [ ] QA/eval (golden set, demo day) — #19, #20, #21, #22

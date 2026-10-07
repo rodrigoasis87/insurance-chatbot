@@ -260,7 +260,7 @@ Reglas:
 
 ---
 
-## 4.1 Contrato de Generación · Recombinación DEM (R3 · #23, demo v0)
+## 4.1 Contrato de Generación · Recombinación DEM (R3 · #36, demo v0)
 
 Demo v0: ensambla **bloques de cláusulas canónicas** de un molde base del
 catálogo + **perfil sin PII** (opciones curadas) → **borrador DEM** (PDF + JSON).
