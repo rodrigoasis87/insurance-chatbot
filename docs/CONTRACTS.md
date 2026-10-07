@@ -178,6 +178,14 @@ def search(query: str, top_k: int = 5) -> list[dict]:
   los PDFs traen varias pólizas pegadas con la numeración reiniciada (ver 1.1),
   y Qdrant haría upsert sobre IDs repetidos perdiendo artículos en silencio.
 - Los metadatos **viajan con el chunk** siempre (lo verifica #20).
+- **Colapso por artículo**: `search()` pide el doble de candidatos y conserva
+  **un solo hit por `(poliza, articulo)`** (el de mayor score). Motivo: la
+  copia embebida de `POL320130223` (mismo artículo en `documento` 1 y 3 dentro
+  de `POL320190074.pdf`, ver 1.1) y los artículos largos partidos en varios
+  chunks harían que el mismo artículo ocupe dos lugares del top_k y otro
+  artículo quede afuera. Artículos de pólizas distintas **nunca** se colapsan,
+  aunque compartan número: la cita (póliza + página) es distinta. Aplica
+  `app/rag/vectordb.py::colapsar_por_articulo`.
 
 ---
 
