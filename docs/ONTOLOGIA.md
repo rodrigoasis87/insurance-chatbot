@@ -223,9 +223,10 @@ Campos del contrato M1→M2 (`docs/CONTRACTS.md` §1). `ramo`/`año` se decodifi
 ### 6.2 `chunks.jsonl` (salida de #7)
 
 `Document` de LangChain: `page_content` (fragmento) + `metadata` = `poliza`,
-`ramo`, `año`, `articulo`, `titulo_canonico`, `pagina`, `chunk_index` (0-based
-por `(poliza, articulo)`). El splitter no cruza de artículo. El retrieval agrega
-`score` (coseno, colección `polizas`, 768 dims, `nomic-embed-text`).
+`documento`, `ramo`, `año`, `familia`, `articulo`, `titulo_canonico`, `pagina` y
+`chunk_index` (0-based por `(poliza, documento, articulo)`). El splitter no cruza
+de artículo. El retrieval agrega `score` (coseno, colección `polizas`, 1024 dims,
+`qwen3-embedding:0.6b`).
 
 Fuente: `docs/CONTRACTS.md` §1 y §2.
 

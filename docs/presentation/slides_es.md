@@ -85,7 +85,7 @@ El bot fija el **perfil mínimo del cliente sin pedir datos identificatorios ni 
 
 Hallazgos del **EDA** (dimensionan el problema, no lo definen):
 
-- **9 pólizas** (2013–2021) · salud (8) + accidentes (1)
+- **10 documentos de depósito** (2013–2021) en 9 PDFs · salud (9) + accidentes (1)
 - **227 artículos** segmentados en el corpus
 - **36 cláusulas canónicas** — de cobertura a vigencias
 - Longitud por artículo: mediana **~1.200 chars**; hasta **25.7k chars**
@@ -187,9 +187,9 @@ Garantías (G1) ─── valida / asegura ─┘
 
 # Solución · Motor RAG — R1: indexación y retrieval - Marlon
 
-- **Qdrant** × colección `polizas` (768 dims · coseno) + `search(query, top_k)` con **score y metadata** (#9).
-- Embeddings **`nomic-embed-text`** vía Ollama (local).
-- `point_id` determinístico → index build **idempotente**.
+- **Qdrant** × colección `polizas` (1024 dims · coseno) + `search(query, top_k)` con **score y metadata** (#9).
+- Embeddings **`qwen3-embedding:0.6b`** vía Ollama (local, multilingüe).
+- `point_id` determinístico (`poliza` + `documento` + `articulo` + `chunk_index`) → index build **idempotente**.
 - Los metadatos **viajan con el chunk** (trazabilidad); `UMBRAL_SCORE` se aplica aguas abajo.
 
 ---
@@ -203,7 +203,7 @@ Garantías (G1) ─── valida / asegura ─┘
 3. Si el contexto no alcanza y es del rubro → **2.ª llamada** con `web_search` → **fuente web marcada** (`origen: web`).
 4. Si no hay nada → "no está en las fuentes" + alcance del asistente.
 
-- LLM **`qwen3:4b`** local · guardrail de dominio · contrato en `CONTRACTS.md` §3 (#17 + #8).
+- LLM **`qwen3:4b-instruct`** local · guardrail de dominio · contrato en `CONTRACTS.md` §3 (#17 + #8).
 - **Rangos de valores/precios de mercado** (el corpus no tiene precios): se responden por `web_search` **citado** como rango, nunca inventados.
 
 ---

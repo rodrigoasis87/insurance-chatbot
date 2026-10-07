@@ -237,7 +237,7 @@ Garantías (G1) ─── valida/asegura ───┘
 |---|---|---|---|---|
 | **Datos** | **Captura y limpieza** | PDFs → `articulos.jsonl` (segmentados, limpios, con metadata) | Trazabilidad | #4 |
 | | **Chunking** | `articulos.jsonl` → `chunks.jsonl` (no cruzan artículo) | Trazabilidad + completud | #7 |
-| **Motor RAG** | **Indexación y retrieval** | chunks → Qdrant (`polizas`, 768d, coseno) + `search()` | 0 alucinación + velocidad | #9 |
+| **Motor RAG** | **Indexación y retrieval** | chunks → Qdrant (`polizas`, 1024d, coseno) + `search()` | 0 alucinación + velocidad | #9 |
 | | **Generación con citas (agente)** | `query()` = agente ≤2 llamadas: retrieve → juzgar → (si falta, `web_search`) → `answer` + `sources[]` | Trazabilidad + 0 alucinación | #17, #8 |
 | **Generación** | **Recombinación DEM (demo v0)** | `app/generation/` → endpoint `/policy-recombine` + **PDF borrador DEM** (bloques canónicos + perfil sin PII; sin emisión) | Regla de negocio (núcleo del enunciado) | #23 |
 | **Exposición** | **API + UI** | FastAPI (`/chat`, `/health`, `/policies`, `/policy-recombine`) + Chainlit con fuentes visibles | Trazabilidad | #16, #18 |
