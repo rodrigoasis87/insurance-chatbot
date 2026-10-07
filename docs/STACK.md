@@ -1,5 +1,11 @@
 # ADR-001 · Definición del Stack Técnico
 
+> **Índice de ADRs del proyecto:** este archivo es la **ADR-001** (stack). Las
+> demás viven en `docs/adr/`: **ADR-002** (identidad del documento y clave
+> única) · **ADR-003** (chunking por frontera de artículo) · **ADR-004**
+> (retrieval: colapso por artículo + `UMBRAL_SCORE`) · **ADR-005** (agente
+> acotado ≤2 llamadas + `web_search` en el MVP).
+
 - **Estado:** Aceptado
 - **Issue vinculada:** #2 — Definir y validar Stack Técnico definitivo
 - **Fecha:** 2026-09-28
@@ -113,7 +119,9 @@ uv add duckduckgo-search pymupdf pandas tqdm
   demo/demo-day; se puede acelerar bajando a un modelo menor o subiendo a GPU.
 - **Calidad:** por debajo de GPT-4o en redacción; mitigable con prompts y retrieval
   de calidad (issues #4, #7).
-- **Runtime:** requiere `ollama serve` corriendo (WSL) y Docker para Qdrant.
+- **Runtime:** requiere Docker Compose con **Qdrant y Ollama** corriendo
+  (`docker compose up -d`); no se usa el Ollama nativo del SO (el compose es la
+  fuente de verdad para que todo el equipo tenga el mismo entorno).
 - **Única conexión externa:** búsqueda de noticias (DDG).
 
 ## 7. Variables de entorno

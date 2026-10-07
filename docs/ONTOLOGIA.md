@@ -295,7 +295,7 @@ Fuente: `docs/narrative.md` §4.
 |---|---|---|---|
 | **Responder (documental)** | Devuelve el fragmento fiel con `póliza · Art. N` | corpus (retrieval) | Implementado (MVP, #17) |
 | **Valores/precios del rubro** | Rangos de mercado citados y marcados | `web_search` | MVP (#8) |
-| **Recombinar → DEM** | Ensambla borrador estándar desde bloques + perfil | molde + perfil | **`(diseño)` post-MVP, no implementado** |
+| **Recombinar → DEM** | Ensambla borrador estándar desde bloques + perfil | molde + perfil | **demo v0 en MVP (#36)** · completa `(diseño)` post-MVP |
 | **Fuera de dominio** | Negativa + alcance + canal oficial | — | MVP (#17/#20) |
 
 ---

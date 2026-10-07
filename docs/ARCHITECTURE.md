@@ -8,25 +8,26 @@ MVP y el flujo con las dos extensiones de futuro.
 - Contrato de datos y Runtime: `docs/CONTRACTS.md`
 - Decisión de alcance y entregables: `docs/narrative.md` (§2, §6 y §7)
 - Enunciado oficial y su traducción a alcance: `docs/enunciado.md`
-- Decisiones de stack: `docs/STACK.md` (ADR-001…ADR-013)
-- Issues de referencia entre `#4` y `#23`.
+- Decisiones de stack y arquitectura: `docs/STACK.md` (ADR-001) y
+  `docs/adr/` (ADR-002…ADR-005).
+- Issues de referencia entre `#4` y `#22` más las de cada célula (Generación R3: #36).
 
 ---
 
 ## 1. Componentes del MVP (estado esperado al cierre)
 
-| Bloque | Célula | Componente | Issue |
-|---|---|---|---|
-| Datos | D1 · Captura y limpieza | PDFs (S3) → parser → `articulos.jsonl` (227 art. + metadata) | #4 |
-| Datos | D2 · Chunking | chunks 1000/150 que nunca cruzan artículo → `chunks.jsonl` | #7 |
-| Motor RAG | R1 · Indexación y retrieval | embeddings `qwen3-embedding:0.6b` + Qdrant `polizas` (1024d) + `search()` | #9 |
-| Motor RAG | R2 · Generación con citas / agente | `query()` ≤2 llamadas LLM (`qwen3:4b-instruct`) + `web_search` | #17, #8 |
-| Generación | R3 · Recombinación DEM (**demo v0**) | `app/generation/` → `/policy-recombine` → **PDF borrador DEM** (bloques canónicos + perfil sin PII; sin emisión) | #23 |
-| Exposición | E1 · API y UI | FastAPI delgado + Chainlit con fuentes visibles | #16, #18 |
-| Garantías | G1 · QA, eval, ops | pytest con mocks · golden set · compose/README/demo | #20, #19, #21, #22 |
+| Bloque | Célula | Componente | Issue | Estado |
+|---|---|---|---|---|
+| Datos | D1 · Captura y limpieza | PDFs (S3) → parser → `articulos.jsonl` (227 art. + metadata) | #4 | ✅ hecho |
+| Datos | D2 · Chunking | chunks 1000/150 que nunca cruzan artículo → `chunks.jsonl` | #7 | ✅ hecho |
+| Motor RAG | R1 · Indexación y retrieval | embeddings `qwen3-embedding:0.6b` + Qdrant `polizas` (1024d) + `search()` con colapso por `(poliza, articulo)` | #9 | ✅ hecho |
+| Motor RAG | R2 · Generación con citas / agente | `query()` ≤2 llamadas LLM (`qwen3:4b-instruct`) + `web_search` | #17, #8 | ⚠ pendiente |
+| Generación | R3 · Recombinación DEM (**demo v0**) | `app/generation/` → `/policy-recombine` → **PDF borrador DEM** (bloques canónicos + perfil sin PII; sin emisión) | #36 | ⚠ pendiente |
+| Exposición | E1 · API y UI | FastAPI delgado + Chainlit con fuentes visibles | #16, #18 | ⚠ pendiente |
+| Garantías | G1 · QA, eval, ops | pytest con mocks · golden set · compose/README/demo | #20, #19, #21, #22 | ⚠ parcial |
 
-Todos los servicios corren en Docker Compose local (Qdrant 6333, Ollama 11434,
-API, UI). Detalle del runtime en `docs/CONTRACTS.md` §4.
+Hoy corren en Docker Compose local **Qdrant (6333) y Ollama (11434)**; la API y
+la UI se agregan en #21. Detalle del runtime en `docs/CONTRACTS.md` §4.
 
 ---
 
@@ -60,14 +61,16 @@ API, UI). Detalle del runtime en `docs/CONTRACTS.md` §4.
 │                                                                          │
 │   Qdrant · colección `polizas` (coseno · 1024d)                          │
 │     index build idempotente (point_id determinístico)      [R1]          │
-│              │                                                        │
-│              ▼                                                        │
-│   search(question, top_k=5) ──► chunks + score + metadata               │
-│              │                                                        │
-│              ▼                                                        │
+│              │                                                           │
+│              ▼                                                           │
+│   search(question, top_k=5) ──► chunks + score + metadata                │
+│               (colapso interno: 1 hit por (poliza, articulo),            │
+│                el de mayor score)                                        │
+│              │                                                           │
+│              ▼                                                           │
 │   UMBRAL_SCORE: filtro hard gate en código      (bajo umbral: jamás      │
 │              │                                 entran al prompt)         │
-│              ▼                                                        │
+│              ▼                                                           │
 │   1.ª llamada LLM · qwen3:4b-instruct (local)                            │
 │     respuesta grounded con citas [fuente: PÓLIZA · Art. N]    [R2]      │
 │              │                                                        │
@@ -87,7 +90,7 @@ API, UI). Detalle del runtime en `docs/CONTRACTS.md` §4.
 └─────────────────────┼────────────────────────────────────────────────────┘
                       ▼ answer + sources[]
 ┌──────────────────────────────────────────────────────────────────────────┐
-│                        GENERACIÓN · R3 (demo v0)        (#23)            │
+│                        GENERACIÓN · R3 (demo v0)        (#36)            │
 │                                                                          │
 │   app/generation/dem.py · recombinar(bloques canónicos + perfil)         │
 │     ──► borrador DEM (código de la corredora, NO POL)                    │
@@ -119,7 +122,7 @@ API, UI). Detalle del runtime en `docs/CONTRACTS.md` §4.
 ## 3. Diagrama 2 · Arquitectura Post-MVP (con Intención + Recombinación completa)
 
 Las extensiones de futuro (**`NUEVO`**) se insertan **sin tocar** las células
-del MVP. La **Recombinación DEM ya existe como demo v0** en el MVP (R3 · #23:
+del MVP. La **Recombinación DEM ya existe como demo v0** en el MVP (R3 · #36:
 ensambla bloques canónicos + perfil → borrador sin emisión); el post-MVP la
 **completa** (preview robusto, declaración formal, emisión) y agrega el
 clasificador de intención:
@@ -185,7 +188,7 @@ clasificador de intención:
 | Cómo decide la ruta | Regla fija: retrieve → `UMBRAL_SCORE` → heurística de dominio en el prompt | **Clasificador de intención liviano** antes de recuperar/buscar |
 | Tipos de intención | Implícito (póliza / rubro vía web / fuera) | Explícito: `poliza` · `rubro` · `recombinar` · `fuera_de_dominio` |
 | Salidas | Respuestas con citas (`origen: poliza` o `web`) + **borrador DEM (R3 · demo v0)** | + **PDF recombinado de grado productivo** (flujo DEM → POL) |
-| Componentes nuevos | — (Demo v0 de generación: R3 · #23) | Clasificador de intención · Recombinación completa (eleva R3) |
+| Componentes nuevos | — (Demo v0 de generación: R3 · #36) | Clasificador de intención · Recombinación completa (eleva R3) |
 | Datos extra | Reuso de `articulos.jsonl` (36 cláusulas canónicas) para el borrador DEM | + validación legal/preview de grado productivo |
 | API/UI | `/chat`, `/health`, `/policies` + `/policy-recombine` (demo v0) | + `/policy-recombine` productivo con preview/descarga y emisión |
 | Eval | `recall@k`, `cita_ok`, marcación web + validez del borrador DEM | + precisión del clasificador + validez de la póliza recombinada |
@@ -235,8 +238,11 @@ sustentan.
 ## 6. Referencias
 
 - `docs/CONTRACTS.md` — contratos de datos, runtime y agente (`query()` ≤2 llamadas).
+- `docs/umbral_score.md` — `UMBRAL_SCORE` empírico (0.60): metodología y distribuciones (ADR-004).
 - `docs/narrative.md` §2/§6/§7 — mapa de actores, células del MVP y roadmap.
 - `docs/enunciado.md` — requisitos de la consigna ("Insurance Policy Generation Chatbot").
-- `docs/STACK.md` ADR-001/ADR-005 — agente + web en el MVP.
-- Issues: #4, #7 (Datos) · #9, #8, #17 (Motor) · #23 (Generación) ·
+- ADRs: `docs/STACK.md` (ADR-001, stack) y `docs/adr/` — ADR-002 (identidad del
+  documento) · ADR-003 (chunking) · ADR-004 (colapso + `UMBRAL_SCORE`) · ADR-005
+  (agente + web en el MVP).
+- Issues: #4, #7 (Datos) · #9, #8, #17 (Motor) · #36 (Generación) ·
   #16, #18 (Exposición) · #19, #20, #21, #22 (Garantías).

@@ -158,7 +158,7 @@ Findings from the **EDA** (they size the problem, they don't define it):
 
 # Solution · Architecture in Cells
 
-MVP baseline: agent + web, **≤2 LLM calls**, answers always cited **+ generation v0 (DEM · #23)**.
+MVP baseline: agent + web, **≤2 LLM calls**, answers always cited **+ generation v0 (DEM · #36)**.
 
 ```
 Data (D1→D2) ─► RAG Engine (R1→R2) ─► Exposure (E1)
@@ -212,7 +212,7 @@ Assurance (G1) ─── validates / secures ─┘
 
 - **FastAPI** (`/chat`, `/health`, `/policies`, **`/policy-recombine`**) — **thin HTTP**: delegates to `query()`, no RAG logic of its own (#16).
 - **Chainlit** — chat with **visible sources**; web ones are visually differentiated (#18).
-- **Generation v0 (#23):** `/policy-recombine` → **DEM draft PDF** (canonical blocks + profile without PII; marked "DRAFT · not issued").
+- **Generation v0 (#36):** `/policy-recombine` → **DEM draft PDF** (canonical blocks + profile without PII; marked "DRAFT · not issued").
 - Single docker compose · hardened CORS · stack smoke test.
 
 ---
@@ -228,7 +228,7 @@ Assurance (G1) ─── validates / secures ─┘
 |---|---|---|
 | **M1 · Data** | #4, #7 | in progress (#4) |
 | **M2 · RAG Engine** | #9, #8, #17, #19 | next |
-| **G · Generation v0** | #23 | demo CLI → DEM PDF |
+| **G · Generation v0** | #36 | demo CLI → DEM PDF |
 | **M3 · Product** | #16, #18, #20, #21, #22 | planned |
 
 ---
@@ -240,7 +240,7 @@ Assurance (G1) ─── validates / secures ─┘
 1. Finish `articulos.jsonl` (#4) and `chunks.jsonl` (#7)
 2. Index build + `search()` (#9) and web tool (#8)
 3. Agent `query()` with citations (#17) → first demos
-4. **DEM recombination demo v0 (→ PDF, #23)**
+4. **DEM recombination demo v0 (→ PDF, #36)**
 5. Golden set + eval (#19) and product (API/UI/compose · #16–#22)
 
 **Questions?**

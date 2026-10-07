@@ -158,7 +158,7 @@ Hallazgos del **EDA** (dimensionan el problema, no lo definen):
 
 # Solución · Arquitectura en células - Julian
 
-Baseline del MVP: agent + web, **≤2 llamadas LLM**, respuestas siempre citadas **+ generación v0 (DEM · #23)**.
+Baseline del MVP: agent + web, **≤2 llamadas LLM**, respuestas siempre citadas **+ generación v0 (DEM · #36)**.
 
 ```
 Datos (D1→D2) ─► Motor RAG (R1→R2) ─► Exposición (E1)
@@ -212,7 +212,7 @@ Garantías (G1) ─── valida / asegura ─┘
 
 - **FastAPI** (`/chat`, `/health`, `/policies`, **`/policy-recombine`**) — **HTTP delgado**: delega en `query()`, sin lógica RAG propia (#16).
 - **Chainlit** — chat con **fuentes visibles**; las web se diferencian visualmente (#18).
-- **Generación v0 (#23):** `/policy-recombine` → **PDF borrador DEM** (bloques canónicos + perfil sin PII; marcado "BORRADOR · no emitida").
+- **Generación v0 (#36):** `/policy-recombine` → **PDF borrador DEM** (bloques canónicos + perfil sin PII; marcado "BORRADOR · no emitida").
 - Docker compose único · CORS acotado · smoke test del stack.
 
 ---
@@ -228,7 +228,7 @@ Garantías (G1) ─── valida / asegura ─┘
 |---|---|---|
 | **M1 · Datos** | #4, #7 | en curso (#4) |
 | **M2 · Motor RAG** | #9, #8, #17, #19 | próximo |
-| **G · Generación v0** | #23 | demo CLI → PDF DEM |
+| **G · Generación v0** | #36 | demo CLI → PDF DEM |
 | **M3 · Producto** | #16, #18, #20, #21, #22 | planificado |
 
 ---
@@ -240,7 +240,7 @@ Garantías (G1) ─── valida / asegura ─┘
 1. Terminar `articulos.jsonl` (#4) y `chunks.jsonl` (#7)
 2. Index build + `search()` (#9) y tool web (#8)
 3. `query()` del agente con citas (#17) → primeras demos
-4. **Demo v0 de recombinación DEM (→ PDF, #23)**
+4. **Demo v0 de recombinación DEM (→ PDF, #36)**
 5. Golden set + eval (#19) y producto (API/UI/compose · #16–#22)
 
 **¿Preguntas?**
