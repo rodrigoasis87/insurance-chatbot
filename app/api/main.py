@@ -16,8 +16,10 @@ from typing import Any
 import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from app.paths import DATA_DIR
 from app.rag.config import SUPPORTED_LLM_PROVIDERS, get_settings
 from app.rag.llm import get_llm
 from app.rag.query import query as rag_query
@@ -26,7 +28,13 @@ from app.rag.vectordb import get_client
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="QuePlan API", version="0.2.0")
+app = FastAPI(title="QuePlan API", version="0.3.0")
+
+# PDFs de borradores DEM generados en data/generated (§4.1) — el API los sirve
+# tal cual vienen del módulo de generación (app.generation.dem, #36).
+_generated = DATA_DIR / "generated"
+_generated.mkdir(parents=True, exist_ok=True)
+app.mount("/generated", StaticFiles(directory=_generated), name="generated")
 
 
 class ChatRequest(BaseModel):
@@ -43,6 +51,24 @@ class ChatResponse(BaseModel):
     sources: list[dict[str, Any]]
     provider: str
     model: str
+
+
+class RecombineRequest(BaseModel):
+    molde: str = Field(min_length=3, max_length=50, examples=["POL320200071"])
+    perfil: dict[str, str] = Field(
+        description="Condiciones curadas sin PII (dominio canónico, docs/ONTOLOGIA.md §8).",
+        examples=[{"edad": "30-40", "fonasa_isapre": "isapre"}],
+    )
+
+
+class RecombineResponse(BaseModel):
+    codigo: str
+    molde_base: str
+    creado_en: str
+    perfil: dict[str, str]
+    secciones: list[dict[str, Any]]
+    pdf_url: str
+    aviso: str
 
 
 def _modelo_actual() -> tuple[str, str]:
@@ -119,6 +145,23 @@ def chat_stream(body: ChatRequest) -> StreamingResponse:
             )
 
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+@app.post("/policy-recombine", response_model=RecombineResponse)
+def policy_recombine(body: RecombineRequest) -> dict[str, Any]:
+    """Recombinación DEM demo v0 (#36): molde + perfil curado → borrador §4.1."""
+    from app.generation.dem import generar_dem
+
+    try:
+        payload, _pdf = generar_dem(molde=body.molde, perfil=body.perfil)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not payload.get("secciones"):
+        raise HTTPException(
+            status_code=404,
+            detail=f"el molde {body.molde} no tiene artículos en data/processed/articulos.jsonl",
+        )
+    return payload
 
 
 @app.get("/health")

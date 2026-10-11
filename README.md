@@ -132,12 +132,14 @@ si la pregunta es del rubro y el corpus no alcanza, consulta una vez la web
 docker compose up -d --build            # todo arriba → UI en http://localhost:8001
 curl -X POST localhost:8000/chat -H 'Content-Type: application/json' \
   -d '{"question":"¿Cuál es el plazo para denunciar un siniestro?"}'   # API directo
-uv run python -m scripts.demo_recorrido  # 5 preguntas guiadas contra el API local (ver nota)
+uv run python -m scripts.demo_recorrido  # 5 preguntas + generación DEM (§4.1) (ver nota)
 uv run pytest tests/test_rag_query.py tests/test_api.py        # tests del agente y del API
 ```
 
-> `demo_recorrido` importa `query()` directo (no usa el API); para probar el API
-> local por fuera de Docker: `uv run uvicorn app.api.main:app --port 8000`.
+> `demo_recorrido` usa `query()` directo para las 5 preguntas (sin Docker); el
+> **paso 6 (Recombinación DEM)** llama al API (`POST /policy-recombine`, §4.1), así
+> que necesita el stack arriba. Para probar el API local por fuera de Docker:
+> `uv run uvicorn app.api.main:app --port 8000`.
 
 ### Demo: streaming y ambas modalidades (ADR-006)
 
@@ -159,6 +161,25 @@ curl localhost:8000/health         # → {"provider": "google", "model": "gemini
 O volvés a local cambiando `LLM_PROVIDER=ollama` en `.env` + `docker compose up -d api`.
 En la UI, aún con default local, el selector permite cambiar modalidad por consulta
 (grabá latencia y citas de las 5 preguntas en ambos modos para el demo-day).
+
+### Demo: generación de borrador DEM (#36)
+
+`POST /policy-recombine` (CONTRACTS §4.1) recombina bloques de cláusulas de un
+**molde base** del catálogo + **perfil curado sin PII** (opciones del dominio:
+edad, preexistencias, fonasa/isapre, etc.) → borrador **JSON + PDF** con marca
+`BORRADOR · no emitida` y cita de origen por sección:
+
+```bash
+curl -X POST localhost:8000/policy-recombine -H 'Content-Type: application/json' \
+  -d '{"molde":"POL320200071","perfil":{"edad":"30-40","preexistencias":"no",\
+       "deportes_riesgo":"no","fonasa_isapre":"isapre","embarazo":"no",\
+       "cronicas":"no","colectivo":"no","residencia":"chile"}}'
+# → codigo DEM2026…, secciones con cita, pdf_url "/generated/DEM….pdf", aviso
+```
+
+El PDF se sirve en `http://localhost:8000/generated/<codigo>.pdf` (el API monta
+`data/generated`). También corre como CLI: `uv run python -m app.generation.dem --help`.
+La demo lo muestra en el **paso 6** de `demo_recorrido`.
 
 ## Documentación
 

@@ -23,6 +23,10 @@ services:
     container_name: insurance-api
     ports:
       - "8000:8000"
+    volumes:
+      # El API NO copia /data (ADR-001): /policy-recombine (§4.1) necesita
+      # articulos.jsonl y escribe el PDF borrador en data/generated.
+      - ./data:/app/data
     environment:
       QDRANT_URL: http://qdrant:6333
       OLLAMA_BASE_URL: http://ollama:11434
