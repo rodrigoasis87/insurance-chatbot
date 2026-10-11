@@ -21,8 +21,8 @@ API_URL = os.getenv("API_URL", "http://localhost:8000").rstrip("/")
 AMBIENTE = """Asistente documental sobre el Depósito de Pólizas de la CMF.
 Respondo SOLO con citas de pólizas del corpus o fuentes web de mercado.
 Preguntas útiles: cobertura, exclusiones, plazos de denuncia, obligaciones.
-El selector lateral cambia el modelo de respuesta en vivo (Ollama local ·
-Google cloud, demo)."""
+El selector **Modelo** (panel derecho) cambia el LLM en vivo: `ollama` (local)
+o `google` (Gemini por API key, demo)."""
 
 DEFAULT_PROVIDER = "ollama"
 
@@ -109,7 +109,8 @@ async def on_message(message: cl.Message) -> None:
                         break
                     elif ev["type"] == "done":
                         break
-        await msg.update(content="".join(texto) + _render_fuentes(fuentes))
+        msg.content = "".join(texto) + _render_fuentes(fuentes)
+        await msg.update()
     except Exception as exc:  # la UI nunca debe caer por un error interno
         await cl.Message(
             content=f"Ocurrió un error interno: {type(exc).__name__} ({exc}). "
