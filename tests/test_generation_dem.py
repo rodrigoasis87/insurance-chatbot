@@ -167,7 +167,7 @@ def test_validar_perfil_rechaza_pii_y_campos_desconocidos(perfil_valido: dict[st
 
 def test_generar_codigo_dem_formato() -> None:
     codigo_seq1 = generar_codigo_dem(seq=1)
-    # Formato DEM{YY}{seq:04d} ej DEM260001
+    # Formato DEM{YYYY}{seq:04d} ej DEM20260001
     assert re.match(r"^DEM\d{6,8}$", codigo_seq1)
     assert codigo_seq1.endswith("0001")
 

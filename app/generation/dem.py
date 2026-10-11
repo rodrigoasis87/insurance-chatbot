@@ -580,7 +580,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--seq",
         type=int,
         default=None,
-        help="Correlativo numérico opcional para el código DEM (ej. 1 -> DEM260001).",
+        help="Correlativo numérico opcional para el código DEM (ej. 1 -> DEM20260001).",
     )
     parser.add_argument(
         "--json",
