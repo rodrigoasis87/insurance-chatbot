@@ -111,6 +111,20 @@ uv run python -m app.data.chunker \
   --output otro/chunks.jsonl
 ```
 
+## Demo (R3 · #36)
+
+El agente `query()` (CONTRACTS §3) aplica el **hard gate `UMBRAL_SCORE`** en
+código, responde *grounded* con citas internas `[fuente: POL · Art. N]` y, solo
+si la pregunta es del rubro y el corpus no alcanza, consulta una vez la web
+(`web_search`, DuckDuckGo) y cita la fuente externa como `[web]` (ADR-004/005,
+≤2 llamadas LLM por consulta).
+
+```bash
+PYTHONPATH=. uv run chainlit run app/ui/chat.py   # UI web → http://localhost:8000
+uv run python -m scripts.demo_recorrido           # 5 preguntas guiadas por consola
+uv run pytest tests/test_rag_query.py             # tests del agente (mocks, sin red)
+```
+
 ## Documentación
 
 - `docs/ARCHITECTURE.md` — arquitectura del MVP y post-MVP, con ADRs y estado por célula.
@@ -125,8 +139,8 @@ uv run python -m app.data.chunker \
 - [x] Repo, stack técnico e infra Docker (Qdrant `v1.19.1` + Ollama) — ADR-001
 - [x] Datos: descarga S3, EDA, parser y artefactos (227 artículos · 758 chunks) — #4, #7
 - [x] Retrieval: indexado Qdrant + `search()` con colapso por `(poliza, articulo)` y `UMBRAL_SCORE` — #9 · ADR-002/003/004
-- [ ] RAG + agentes (pólizas / noticias web, ≤2 llamadas LLM) — #17, #8
+- [x] Agente RAG demo v0: `query()` con hard gate, citas y `web_search` (≤2 llamadas LLM) — #17, #8 · ADR-004/005
+- [x] UI demo: Chainlit (`app/ui/chat.py`) — #18 (demo v0, pendiente API de #16)
 - [ ] Generación DEM (recombinación demo v0) — #36
 - [ ] API FastAPI — #16
-- [ ] UI — #18
 - [ ] QA/eval (golden set, demo day) — #19, #20, #21, #22

@@ -15,5 +15,8 @@ wheels/
 # Datos descargados (PDFs, etc.)
 /data/
 
+# Config autogenerada de Chainlit (UI #18): solo se versiona config.toml
+.chainlit/translations/
+
 # Locks temporales de LibreOffice (nunca commitear)
 .~lock.*#
