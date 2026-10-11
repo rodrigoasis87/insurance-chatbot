@@ -1,14 +1,19 @@
-"""Interfaz de chat para la demo (Issue #18, CONTRACTS §4.1 demo v0).
+"""Interfaz de chat para la demo (Issue #18, CONTRACTS §4).
 
-Correr con:  uv run chainlit run app/ui/chat.py
+Correr local:      uv run chainlit run app/ui/chat.py
+Desde Docker:      API_URL=http://api:8000 (compone dentro de docker compose)
 
-Consume ``app/rag/query.query()`` (Issue #17) directamente; cuando exista el
-API (#16) migrará a HTTP.
+Consume el API HTTP (#16) por POST /chat; la logica RAG vive en
+``app/rag/query.py`` y el API la expone (CONTRACTS §4: "#18 consume #16,
+no #17 directo").
 """
 
-import chainlit as cl
+import os
 
-from app.rag.query import query
+import chainlit as cl
+import httpx
+
+API_URL = os.getenv("API_URL", "http://localhost:8000").rstrip("/")
 
 AMBIENTE = """Asistente documental sobre el Depósito de Pólizas de la CMF.
 Respondo SOLO con citas de pólizas del corpus o fuentes web de mercado.
@@ -42,10 +47,15 @@ async def on_message(message: cl.Message) -> None:
         await cl.Message(content="Escribí una pregunta sobre las pólizas.").send()
         return
     try:
-        respuesta = await cl.make_async(query)(message.content.strip())
+        async with httpx.AsyncClient(timeout=180) as http:
+            resp = await http.post(
+                f"{API_URL}/chat", json={"question": message.content.strip()}
+            )
+            resp.raise_for_status()
+            respuesta = resp.json()
         await cl.Message(content=_render(respuesta)).send()
     except Exception as exc:  # la UI nunca debe caer por un error interno
         await cl.Message(
             content=f"Ocurrió un error interno: {type(exc).__name__} ({exc}). "
-            "Reintentá o ajustá la pregunta."
+            "¿El API está levantado? Reintentá o ajustá la pregunta."
         ).send()

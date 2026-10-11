@@ -18,6 +18,31 @@ services:
       - ollama_models:/root/.ollama
     restart: unless-stopped
 
+  api:
+    build: .
+    container_name: insurance-api
+    ports:
+      - "8000:8000"
+    environment:
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: http://ollama:11434
+    depends_on:
+      - qdrant
+      - ollama
+    restart: unless-stopped
+
+  ui:
+    build: .
+    container_name: insurance-ui
+    command: ["uv", "run", "chainlit", "run", "app/ui/chat.py", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8001:8000"
+    environment:
+      API_URL: http://api:8000
+    depends_on:
+      - api
+    restart: unless-stopped
+
 volumes:
   qdrant_data:
   ollama_models:

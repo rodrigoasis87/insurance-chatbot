@@ -36,6 +36,12 @@ data/
 
 El stack corre **100% via Docker** para que todo el equipo tenga el mismo entorno.
 
+**Levantar todo de una** (Qdrant + Ollama + API + UI; requiere index previo, ver abajo):
+
+```bash
+docker compose up -d --build          # UI → http://localhost:8001 · API → http://localhost:8000/docs
+```
+
 ```bash
 bash scripts/setup.sh        # uv sync + docker compose up + modelos + smoke test
 ```
@@ -45,7 +51,7 @@ O manualmente, paso a paso:
 ```bash
 uv sync                       # instala dependencias y crea .venv
 cp .env.example .env          # completa tus credenciales AWS S3
-docker compose up -d          # levanta Qdrant (6333) y Ollama (11434)
+docker compose up -d          # levanta Qdrant (6333), Ollama (11434), API (8000) y UI (8001)
 docker compose exec ollama ollama pull qwen3:4b-instruct      # LLM del RAG (#9)
 docker compose exec ollama ollama pull qwen3-embedding:0.6b   # embeddings del RAG (#9)
 uv run python scripts/smoke_stack.py   # valida el stack
@@ -120,10 +126,15 @@ si la pregunta es del rubro y el corpus no alcanza, consulta una vez la web
 ≤2 llamadas LLM por consulta).
 
 ```bash
-PYTHONPATH=. uv run chainlit run app/ui/chat.py   # UI web → http://localhost:8000
-uv run python -m scripts.demo_recorrido           # 5 preguntas guiadas por consola
-uv run pytest tests/test_rag_query.py             # tests del agente (mocks, sin red)
+docker compose up -d --build            # todo arriba → UI en http://localhost:8001
+curl -X POST localhost:8000/chat -H 'Content-Type: application/json' \
+  -d '{"question":"¿Cuál es el plazo para denunciar un siniestro?"}'   # API directo
+uv run python -m scripts.demo_recorrido  # 5 preguntas guiadas contra el API local (ver nota)
+uv run pytest tests/test_rag_query.py tests/test_api.py        # tests del agente y del API
 ```
+
+> `demo_recorrido` importa `query()` directo (no usa el API); para probar el API
+> local por fuera de Docker: `uv run uvicorn app.api.main:app --port 8000`.
 
 ## Documentación
 
@@ -140,7 +151,8 @@ uv run pytest tests/test_rag_query.py             # tests del agente (mocks, sin
 - [x] Datos: descarga S3, EDA, parser y artefactos (227 artículos · 758 chunks) — #4, #7
 - [x] Retrieval: indexado Qdrant + `search()` con colapso por `(poliza, articulo)` y `UMBRAL_SCORE` — #9 · ADR-002/003/004
 - [x] Agente RAG demo v0: `query()` con hard gate, citas y `web_search` (≤2 llamadas LLM) — #17, #8 · ADR-004/005
-- [x] UI demo: Chainlit (`app/ui/chat.py`) — #18 (demo v0, pendiente API de #16)
+- [x] API FastAPI delgado: `POST /chat` · `GET /health` · `GET /policies`, delega en `query()` — #16
+- [x] UI demo: Chainlit consumiendo el API por HTTP (no `query()` directo) — #18 · CONTRACTS §4
+- [x] Ops demo: `docker compose` único (Qdrant + Ollama + API + UI) — #21
 - [ ] Generación DEM (recombinación demo v0) — #36
-- [ ] API FastAPI — #16
-- [ ] QA/eval (golden set, demo day) — #19, #20, #21, #22
+- [ ] QA/eval (golden set, demo day) — #19, #20, #22
