@@ -4,7 +4,8 @@
 > demás viven en `docs/adr/`: **ADR-002** (identidad del documento y clave
 > única) · **ADR-003** (chunking por frontera de artículo) · **ADR-004**
 > (retrieval: colapso por artículo + `UMBRAL_SCORE`) · **ADR-005** (agente
-> acotado ≤2 llamadas + `web_search` en el MVP).
+> acotado ≤2 llamadas + `web_search` en el MVP) · **ADR-006** (LLM de chat
+> intercambiable; default local, cloud opt-in demo).
 
 - **Estado:** Aceptado
 - **Issue vinculada:** #2 — Definir y validar Stack Técnico definitivo
@@ -126,7 +127,9 @@ uv add duckduckgo-search pymupdf pandas tqdm
 
 ## 7. Variables de entorno
 
-No hay API keys de modelos. Solo las del dataset AWS (para descargar PDFs):
+No hay API keys de modelos en el default (ADR-006: las keys de proveedores
+cloud son **opt-in de demo** y van solo en el `.env`, gitignored). Para
+descargar los PDFs del dataset AWS:
 
 ```
 AWS_ACCESS_KEY_ID=...

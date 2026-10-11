@@ -10,6 +10,9 @@ generar nuevas.
 Stack **100% local y gratuita** (ver `docs/STACK.md` — ADR-001):
 
 - **Modelos:** Ollama (`qwen3:4b-instruct` generación · `qwen3-embedding:0.6b` embeddings)
+- **LLM de chat: intercambiable** (ADR-006): default Ollama local; cloud (`google` →
+  `gemini-3.5-flash-lite`, API key) disponible como **opt-in de demo**. Embeddings
+  y corpus **siempre locales**; solo la modalidad cloud envía la consulta.
 - **RAG + Agentes:** LangChain (+ LangGraph)
 - **Vector store:** Qdrant (Docker)
 - **Búsqueda web:** DuckDuckGo (sin API key)
@@ -136,6 +139,27 @@ uv run pytest tests/test_rag_query.py tests/test_api.py        # tests del agent
 > `demo_recorrido` importa `query()` directo (no usa el API); para probar el API
 > local por fuera de Docker: `uv run uvicorn app.api.main:app --port 8000`.
 
+### Demo: streaming y ambas modalidades (ADR-006)
+
+La UI (`Chainlit`) tiene un **selector lateral** que cambia el LLM por petición
+sin reiniciar (local `ollama` ↔ cloud `google`, etc.), y consume el endpoint
+**SSE** `POST /chat/stream` (`status` → `token…` → `sources`) que muestra la
+respuesta en vivo manteniendo el límite de ≤2 llamadas LLM (peek de `NEED_WEB`).
+
+- Modalidad local (default): anda sin configurar nada.
+- Modalidad cloud: pegá tu `GOOGLE_API_KEY` en `.env` (o usá la otra clave del
+  bloque), luego recreá el contenedor del API para leer la env:
+
+```bash
+# cloud: GOOGLE_API_KEY=... y, opcionalmente, LLM_PROVIDER=google en .env
+docker compose up -d api           # ~10 s, sin rebuild
+curl localhost:8000/health         # → {"provider": "google", "model": "gemini-3.5-flash-lite", ...}
+```
+
+O volvés a local cambiando `LLM_PROVIDER=ollama` en `.env` + `docker compose up -d api`.
+En la UI, aún con default local, el selector permite cambiar modalidad por consulta
+(grabá latencia y citas de las 5 preguntas en ambos modos para el demo-day).
+
 ## Documentación
 
 - `docs/ARCHITECTURE.md` — arquitectura del MVP y post-MVP, con ADRs y estado por célula.
@@ -143,7 +167,7 @@ uv run pytest tests/test_rag_query.py tests/test_api.py        # tests del agent
 - `docs/ONTOLOGIA.md` — ontología del dominio (claves, PII, intenciones).
 - `docs/narrative.md` — narrativa, actores y roadmap.
 - `docs/umbral_score.md` — `UMBRAL_SCORE` empírico (ADR-004).
-- `docs/STACK.md` (ADR-001) y `docs/adr/` (ADR-002…005) — decisiones de arquitectura.
+- `docs/STACK.md` (ADR-001) y `docs/adr/` (ADR-002…006) — decisiones de arquitectura.
 
 ## Estado
 
@@ -154,5 +178,6 @@ uv run pytest tests/test_rag_query.py tests/test_api.py        # tests del agent
 - [x] API FastAPI delgado: `POST /chat` · `GET /health` · `GET /policies`, delega en `query()` — #16
 - [x] UI demo: Chainlit consumiendo el API por HTTP (no `query()` directo) — #18 · CONTRACTS §4
 - [x] Ops demo: `docker compose` único (Qdrant + Ollama + API + UI) — #21
+- [x] Demo ext: streaming SSE (`/chat/stream`) + LLM intercambiable con toggle en la UI (local ↔ cloud) — ADR-006
 - [ ] Generación DEM (recombinación demo v0) — #36
 - [ ] QA/eval (golden set, demo day) — #19, #20, #22

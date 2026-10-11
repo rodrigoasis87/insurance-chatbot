@@ -12,11 +12,17 @@
    la fuente externa con ``[fuente web: <url>]``.
 
 Nunca mas de 2 llamadas LLM ni 1 búsqueda web por consulta (ADR-005).
+
+``query_stream()`` es la variante **streaming** (ADR-006, demo): emite eventos
+``{type: status|token|sources|done}`` y detecta ``NEED_WEB`` por peek del
+primer token (la generacion grounded se muestra en vivo; si el LLM corta con
+``NEED_WEB``, se descarta y se regenera con la web), conservando ≤2
+generaciones LLM.
 """
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Any, AsyncIterator, Callable
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -221,3 +227,158 @@ def query(
         "answer": web["answer"],
         "sources": _sources_poliza(hits) + web["sources"],
     }
+
+
+def _chunk_text(chunk: Any) -> str:
+    """Texto plano de un chunk de ``BaseChatModel.astream`` (str o AIMessageChunk)."""
+    if isinstance(chunk, str):
+        return chunk
+    content = getattr(chunk, "content", chunk)
+    if isinstance(content, list):
+        parts = []
+        for part in content:
+            if isinstance(part, str):
+                parts.append(part)
+            elif isinstance(part, dict) and part.get("text"):
+                parts.append(part["text"])
+        return "".join(parts)
+    return str(content or "")
+
+
+async def _astream_tokens(llm: BaseChatModel, msgs: list) -> AsyncIterator[str]:
+    """Todos los tokens (evento ``token``) de una generación de chat."""
+    async for chunk in llm.astream(msgs):
+        tok = _chunk_text(chunk)
+        if tok:
+            yield {"type": "token", "text": tok}
+
+
+def _frags_web(results: list[WebResult]) -> str:
+    return "\n\n".join(
+        f"[{i}] {r.title} ({r.url}):\n{r.body}" for i, r in enumerate(results, start=1)
+    )
+
+
+async def query_stream(
+    question: str,
+    *,
+    top_k: int = 5,
+    use_web: bool = True,
+    llm: BaseChatModel | None = None,
+    search_fn: Callable[..., list[SearchHit]] | None = None,
+    web_fn: Callable[[str, int], list[WebResult]] | None = None,
+) -> AsyncIterator[dict[str, Any]]:
+    """Variante streaming de ``query()`` (mismo flujo y ≤2 llamadas LLM).
+
+    Emite eventos dict por cada paso:
+        {"type": "status", "kind": "searching" | "llm" | "web"}
+        {"type": "token", "text": "<fragmento>"}
+        {"type": "sources", "sources": [...]}
+        {"type": "done"}
+
+    La 1.ª generación grounded se emite en vivo por tokens; si los primeros
+    tokens forman ``NEED_WEB`` se corta (no se muestra) y se regenera con la
+    2.ª llamada (web). El cliente consume ``token`` como respuesta y ``sources``
+    al final.
+    """
+    search_fn = search_fn or _search
+    web_fn = web_fn or _web_search
+    llm = llm or get_llm()
+
+    yield {"type": "status", "kind": "searching"}
+    hits = _pasa_gate(search_fn(question, top_k=top_k), get_settings().umbral_score)
+
+    if not hits:
+        # Sin contexto certero: rubro → web directo; si no, texto curado.
+        if use_web and es_del_dominio(question):
+            yield {"type": "status", "kind": "web"}
+            try:
+                results = web_fn(question)
+            except WebSearchError:
+                yield {"type": "token", "text": NO_EN_WEB_DISPONIBLE}
+                yield {"type": "sources", "sources": []}
+                yield {"type": "done", "reason": "web_error"}
+                return
+            async for ev in _astream_tokens(
+                llm,
+                [
+                    SystemMessage(SYSTEM_2),
+                    HumanMessage(
+                        f"Pregunta: {question}\n\nResultados web:\n{_frags_web(results)}"
+                    ),
+                ],
+            ):
+                yield ev
+            yield {"type": "sources", "sources": _sources_web(results)}
+            yield {"type": "done"}
+            return
+
+        yield {"type": "token", "text": NO_EN_FUENTES}
+        yield {"type": "sources", "sources": []}
+        yield {"type": "done"}
+        return
+
+    fuentes_poliza = _sources_poliza(hits)
+    user1 = f"Pregunta: {question}\n\nFragmentos:\n{_build_fragments(hits)}"
+    msgs1 = [SystemMessage(SYSTEM_1), HumanMessage(user1)]
+
+    # 1.ª generación con peek: emitir en vivo salvo que arranque con NEED_WEB.
+    yield {"type": "status", "kind": "llm"}
+    pendiente: list[str] = []
+    decidido = False
+    pide_web = False
+    async for chunk in llm.astream(msgs1):
+        tok = _chunk_text(chunk)
+        if not tok:
+            continue
+        if decidido:
+            yield {"type": "token", "text": tok}
+            continue
+        prueba = "".join(pendiente) + tok
+        if NEED_WEB.startswith(prueba):
+            pendiente.append(tok)
+            if prueba == NEED_WEB:
+                decidido = True
+                pide_web = True
+            continue
+        # Ya no puede ser NEED_WEB: esta generación grounded se muestra.
+        decidido = True
+        pide_web = False
+        for t in pendiente:
+            yield {"type": "token", "text": t}
+        pendiente = []
+        yield {"type": "token", "text": tok}
+
+    if pide_web:
+        # 1.ª llama pidió web: solo si corresponde al rubro (ADR-005).
+        if use_web and es_del_dominio(question):
+            yield {"type": "status", "kind": "web"}
+            try:
+                results = web_fn(question)
+            except WebSearchError:
+                yield {"type": "token", "text": NO_EN_WEB_DISPONIBLE}
+                yield {"type": "sources", "sources": fuentes_poliza}
+                yield {"type": "done", "reason": "web_error"}
+                return
+            async for ev in _astream_tokens(
+                llm,
+                [
+                    SystemMessage(SYSTEM_2),
+                    HumanMessage(
+                        f"Pregunta: {question}\n\nResultados web:\n{_frags_web(results)}"
+                    ),
+                ],
+            ):
+                yield ev
+            yield {"type": "sources", "sources": fuentes_poliza + _sources_web(results)}
+            yield {"type": "done"}
+            return
+        # Fuera del rubro: misma cobertura que la variante no-stream.
+        yield {"type": "token", "text": NO_EN_FUENTES}
+        yield {"type": "sources", "sources": []}
+        yield {"type": "done"}
+        return
+
+    # Grounded: los tokens ya se emitieron en vivo.
+    yield {"type": "sources", "sources": fuentes_poliza}
+    yield {"type": "done"}

@@ -20,7 +20,7 @@ from app.paths import PROJECT_ROOT
 # No pisa variables ya definidas en el entorno (util en Docker y en CI).
 load_dotenv(PROJECT_ROOT / ".env")
 
-SUPPORTED_LLM_PROVIDERS = ("ollama", "openai", "anthropic")
+SUPPORTED_LLM_PROVIDERS = ("ollama", "openai", "anthropic", "google")
 
 # Valores por defecto: ADR-001 + docs/CONTRACTS.md seccion 2.
 DEFAULT_LLM_PROVIDER = "ollama"
@@ -31,6 +31,9 @@ DEFAULT_OLLAMA_CHAT_MODEL = "qwen3:4b-instruct"
 DEFAULT_OPENAI_CHAT_MODEL = "gpt-4o-mini"
 # El mas rapido y barato de Claude; para mas calidad: "claude-sonnet-5-5".
 DEFAULT_ANTHROPIC_CHAT_MODEL = "claude-haiku-4-5-20251001"
+# Google (opt-in post-MVP, ADR-006): el default del repo sigue siendo Ollama
+# (ADR-001). Gemini 3 Flash Lite: ultra-low latency y el mas barato de la linea.
+DEFAULT_GOOGLE_CHAT_MODEL = "gemini-3.5-flash-lite"
 # Multilingue (nomic-embed-text es solo ingles y fallo el test en espanol).
 DEFAULT_EMBEDDING_MODEL = "qwen3-embedding:0.6b"
 DEFAULT_QDRANT_URL = "http://localhost:6333"
@@ -58,6 +61,8 @@ class Settings:
     openai_chat_model: str
     anthropic_api_key: str
     anthropic_chat_model: str
+    google_api_key: str
+    google_chat_model: str
     embedding_model: str
     qdrant_url: str
     qdrant_collection: str
@@ -74,6 +79,8 @@ def get_settings() -> Settings:
         openai_chat_model=_env("OPENAI_CHAT_MODEL", DEFAULT_OPENAI_CHAT_MODEL),
         anthropic_api_key=_env("ANTHROPIC_API_KEY", ""),
         anthropic_chat_model=_env("ANTHROPIC_CHAT_MODEL", DEFAULT_ANTHROPIC_CHAT_MODEL),
+        google_api_key=_env("GOOGLE_API_KEY", ""),
+        google_chat_model=_env("GOOGLE_CHAT_MODEL", DEFAULT_GOOGLE_CHAT_MODEL),
         embedding_model=_env("EMBEDDING_MODEL", DEFAULT_EMBEDDING_MODEL),
         qdrant_url=_env("QDRANT_URL", DEFAULT_QDRANT_URL),
         qdrant_collection=_env("QDRANT_COLLECTION", DEFAULT_QDRANT_COLLECTION),

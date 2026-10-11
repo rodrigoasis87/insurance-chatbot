@@ -234,17 +234,37 @@ Reglas:
 - `#19` valida con el golden set: `recall@k`, `cita_ok` (internas) y marcación
   correcta de fuentes web.
 
+### 3.1 LLM intercambiable y variante streaming (ADR-006)
+
+- El LLM de chat se elige con `LLM_PROVIDER` (default `ollama`, ADR-001) o se
+  fuerza por petición (`provider`). `ollama | openai | anthropic | google`; los
+  cloud (key API) son **opt-in de demo**: la consulta sale del sistema solo en
+  ese modo; embeddings y corpus siguen siendo locales (ADR-001).
+- `query_stream()` (`app/rag/query.py`) es la variante streaming de `query()`:
+  **mismo flujo y ≤2 generaciones LLM**, pero emite eventos
+  `{type: status|token|sources|done}`. Detección de `NEED_WEB` por **peek del
+  primer token** del stream (la generación grounded se muestra en vivo; si
+  arranca con `NEED_WEB` se descarta y se regenera con la web). `query()`
+  (no-stream) se conserva para scripts y tests.
+
 ---
 
 ## 4. Contrato API → UI (#16 → #18)
 
 ```json
-POST /chat     {"question": "¿…?"}
+POST /chat     {"question": "¿…?", "provider": "ollama|google"}   // provider opcional (demo, ADR-006)
   → {"answer": "…",
      "sources": [{"origen": "poliza", "poliza": "POL320130223", "articulo": 2, "pagina": 1},
-                 {"origen": "web", "url": "https://...", "titulo": "..."}]}
+                 {"origen": "web", "url": "https://...", "titulo": "..."}],
+     "provider": "google", "model": "gemini-3.5-flash-lite"}
 
-GET  /health   → {"qdrant": "ok", "ollama": "ok"}
+POST /chat/stream   {"question": "¿…?", "provider": "ollama|google"}  // SSE; eventos por línea:
+  → data: {"type": "status", "kind": "searching"|"llm"|"web"}
+    data: {"type": "token", "text": "…"}
+    data: {"type": "sources", "sources": ["…"]}
+    data: {"type": "done"}        // data: {"type":"error","message":"…"} corta el stream
+
+GET  /health   → {"qdrant": "ok", "ollama": "ok", "provider": "ollama", "model": "qwen3:4b-instruct"}
 
 GET  /policies → [{"poliza": "POL320130223", "ramo": "salud", "año": "2013"}]
 ```
@@ -252,9 +272,13 @@ GET  /policies → [{"poliza": "POL320130223", "ramo": "salud", "año": "2013"}]
 Reglas:
 
 - `#16` es **HTTP delgado**: no tiene lógica RAG propia; delega en `query()`
-  de `#17`.
+  / `query_stream()` de `#17`.
 - `#18` consume **`#16`** (no `#17` directo); muestra `poliza`/`articulo`/`pagina`
   como fuentes, diferenciando visualmente las de `origen: "web"`.
+- `provider` es opcional en ambos endpoints: default `LLM_PROVIDER` del `.env`;
+  por petición permite a la UI cambiar de LLM sin reiniciar (selector, ADR-006).
+- `/chat/stream` mantiene el mismo flujo y límite de ≤2 generaciones LLM de `§3`;
+  `token` es la respuesta (grounded en vivo), `sources` llega al final.
 - `GET /policies` puede derivar la lista de `data/raw_pdfs/` o de los índices;
   la fuente concreta la define `#16`.
 

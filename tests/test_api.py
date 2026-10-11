@@ -1,5 +1,6 @@
 """Tests del API HTTP (Issue #16, CONTRACTS §4) con la logica RAG mockeada."""
 
+import json
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
@@ -18,7 +19,7 @@ RESPUESTA = {
 def test_chat_delega_en_query_y_devuelve_contrato(monkeypatch) -> None:
     llamadas = []
 
-    def fake_query(question: str) -> dict:
+    def fake_query(question: str = "", **kwargs) -> dict:
         llamadas.append(question)
         return dict(RESPUESTA)
 
@@ -76,7 +77,73 @@ def test_health_reporta_estado_real(monkeypatch) -> None:
     )
     res = TestClient(app).get("/health")
     assert res.status_code == 200
-    assert res.json() == {"qdrant": "ok", "ollama": "ok"}
+    payload = res.json()
+    assert payload["qdrant"] == "ok"
+    assert payload["ollama"] == "ok"
+    assert payload["provider"] == "ollama"
+    assert payload["model"] == "qwen3:4b-instruct"
+
+
+def test_chat_devuelve_provider_y_modelo(monkeypatch) -> None:
+    def fake_query(question: str, **kwargs) -> dict:
+        return dict(RESPUESTA)
+
+    monkeypatch.setattr(api_main, "rag_query", fake_query)
+    res = TestClient(app).post("/chat", json={"question": "¿plazo?"})
+    payload = res.json()
+    assert payload["provider"] == "ollama"
+    assert payload["model"] == "qwen3:4b-instruct"
+
+
+def test_chat_provider_invalido_devuelve_400() -> None:
+    res = TestClient(app).post(
+        "/chat", json={"question": "¿plazo?", "provider": "gemini"}
+    )
+    assert res.status_code == 400
+    assert "no soportado" in res.json()["detail"]
+
+
+def test_chat_provider_sin_key_devuelve_400(monkeypatch) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    res = TestClient(app).post(
+        "/chat", json={"question": "¿plazo?", "provider": "openai"}
+    )
+    assert res.status_code == 400
+    assert "OPENAI_API_KEY" in res.json()["detail"]
+
+
+def test_chat_stream_devuelve_sse_con_eventos(monkeypatch) -> None:
+    async def fake_stream(question: str, *, llm=None, search_fn=None, web_fn=None,
+                          top_k=5, use_web=True):
+        yield {"type": "status", "kind": "searching"}
+        yield {"type": "token", "text": "Hola "}
+        yield {"type": "token", "text": "mundo"}
+        yield {"type": "sources", "sources": []}
+        yield {"type": "done"}
+
+    monkeypatch.setattr(api_main, "rag_query_stream", fake_stream)
+    res = TestClient(app).post("/chat/stream", json={"question": "¿plazo?"})
+    assert res.status_code == 200
+    assert res.headers["content-type"].startswith("text/event-stream")
+    eventos = []
+    for linea in res.iter_lines():
+        if linea.startswith("data: "):
+            eventos.append(json.loads(linea[6:]))
+    assert [e["type"] for e in eventos] == [
+        "status",
+        "token",
+        "token",
+        "sources",
+        "done",
+    ]
+    assert "".join(e["text"] for e in eventos if e["type"] == "token") == "Hola mundo"
+
+
+def test_chat_stream_provider_invalido_devuelve_400() -> None:
+    res = TestClient(app).post(
+        "/chat/stream", json={"question": "¿plazo?", "provider": "gemini"}
+    )
+    assert res.status_code == 400
 
 
 def test_policies_deriva_lista_unica_ordenada_desde_qdrant(monkeypatch) -> None:

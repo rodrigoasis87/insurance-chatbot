@@ -26,6 +26,14 @@ services:
     environment:
       QDRANT_URL: http://qdrant:6333
       OLLAMA_BASE_URL: http://ollama:11434
+      # LLM (ADR-006): compose interpola el .env local en el contenedor sin
+      # exponer las credenciales AWS. Default local = Ollama (ADR-001).
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen3:4b-instruct}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      GOOGLE_CHAT_MODEL: ${GOOGLE_CHAT_MODEL:-gemini-3.5-flash-lite}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     depends_on:
       - qdrant
       - ollama

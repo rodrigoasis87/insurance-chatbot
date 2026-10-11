@@ -9,29 +9,62 @@ Correr local:  uv run uvicorn app.api.main:app --port 8000
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
 import httpx
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from app.rag.config import get_settings
+from app.rag.config import SUPPORTED_LLM_PROVIDERS, get_settings
+from app.rag.llm import get_llm
 from app.rag.query import query as rag_query
+from app.rag.query import query_stream as rag_query_stream
 from app.rag.vectordb import get_client
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="QuePlan API", version="0.1.0")
+app = FastAPI(title="QuePlan API", version="0.2.0")
 
 
 class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
+    provider: str | None = Field(
+        default=None,
+        description="LLM para esta consulta (demo): ollama|openai|anthropic|google. "
+        "Default: LLM_PROVIDER del .env.",
+    )
 
 
 class ChatResponse(BaseModel):
     answer: str
     sources: list[dict[str, Any]]
+    provider: str
+    model: str
+
+
+def _modelo_actual() -> tuple[str, str]:
+    """``(provider, model)`` del LLM configurado (demo: muestra quién responde)."""
+    s = get_settings()
+    modelos = {
+        "ollama": s.ollama_chat_model,
+        "openai": s.openai_chat_model,
+        "anthropic": s.anthropic_chat_model,
+        "google": s.google_chat_model,
+    }
+    return s.llm_provider, modelos.get(s.llm_provider, "-")
+
+
+def _validar_provider(provider: str | None) -> str | None:
+    if provider and provider.strip().lower() not in SUPPORTED_LLM_PROVIDERS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"provider no soportado: {provider}. "
+            f"Opciones: {', '.join(SUPPORTED_LLM_PROVIDERS)}",
+        )
+    return (provider.strip().lower() if provider else None)
 
 
 def _año(poliza: str) -> str | None:
@@ -42,14 +75,50 @@ def _año(poliza: str) -> str | None:
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(body: ChatRequest) -> ChatResponse:
+    provider = _validar_provider(body.provider)
     try:
-        resultado = rag_query(body.question)
+        resultado = rag_query(body.question, llm=get_llm(provider=provider))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("Fallo query() de %s", body.question[:60])
         raise HTTPException(
             status_code=500, detail=f"error interno: {type(exc).__name__}"
         ) from exc
-    return ChatResponse(answer=resultado["answer"], sources=resultado["sources"])
+    provider_ok, model = _modelo_actual()
+    if provider:
+        provider_ok = provider
+    return ChatResponse(
+        answer=resultado["answer"],
+        sources=resultado["sources"],
+        provider=provider_ok,
+        model=model,
+    )
+
+
+@app.post("/chat/stream")
+def chat_stream(body: ChatRequest) -> StreamingResponse:
+    """SSE del pipeline streaming (ADR-006); mismo body que ``/chat``.
+
+    Eventos (líneas ``data: <json>``): status | token | sources | done. En el
+    error interno se emite ``{"type": "error"}`` y se corta el stream.
+    """
+    provider = _validar_provider(body.provider)
+
+    async def gen():
+        try:
+            llm = get_llm(provider=provider)
+            async for ev in rag_query_stream(body.question, llm=llm):
+                yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
+        except ValueError as exc:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+        except Exception as exc:
+            logger.exception("Fallo query_stream() de %s", body.question[:60])
+            yield (
+                f"data: {json.dumps({'type': 'error', 'message': f'error interno: {type(exc).__name__}'})}\n\n"
+            )
+
+    return StreamingResponse(gen(), media_type="text/event-stream")
 
 
 @app.get("/health")
@@ -64,7 +133,13 @@ def health() -> dict[str, str]:
         httpx.get(f"{get_settings().ollama_base_url}/api/tags", timeout=5).raise_for_status()
     except Exception:
         ollama = "error"
-    return {"qdrant": qdrant, "ollama": ollama}
+    provider, model = _modelo_actual()
+    return {
+        "qdrant": qdrant,
+        "ollama": ollama,
+        "provider": provider,
+        "model": model,
+    }
 
 
 @app.get("/policies")

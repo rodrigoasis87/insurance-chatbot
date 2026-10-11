@@ -1,15 +1,11 @@
-"""Abstraccion del LLM de chat: Ollama (local) u OpenAI (cloud) (Issue #9).
+"""Abstraccion del LLM de chat: Ollama (local, default) y cloud opt-in (ADR-006).
 
-El proveedor se elige solo con ``LLM_PROVIDER`` en el ``.env`` (extra
-post-MVP: el default es Ollama). El resto de la app depende de
-``BaseChatModel`` (``invoke``, ``stream``, ``bind_tools``) y nunca importa
-una clase de proveedor directamente.
+El proveedor se elige con ``LLM_PROVIDER`` en el ``.env`` (default: Ollama,
+ADR-001) o se fuerza por parametro en cada llamada (demo ambas modalidades).
+El resto de la app depende de ``BaseChatModel`` (``invoke``, ``stream``,
+``bind_tools``) y nunca importa una clase de proveedor directamente:
 
-Uso:
-    from app.rag.llm import get_llm
-
-    respuesta = get_llm().invoke("Hola")
-    print(respuesta.content)
+    resp = query(question, llm=get_llm(provider="google"))
 """
 
 from __future__ import annotations
@@ -27,9 +23,12 @@ def get_llm(provider: str | None = None, *, temperature: float = 0.0) -> BaseCha
     * ``openai`` -> ``ChatOpenAI`` con ``OPENAI_CHAT_MODEL`` (``gpt-4o-mini``).
     * ``anthropic`` -> ``ChatAnthropic`` con ``ANTHROPIC_CHAT_MODEL``
       (``claude-haiku-4-5-20251001``).
+    * ``google`` -> ``ChatGoogleGenerativeAI`` con ``GOOGLE_CHAT_MODEL``
+      (``gemini-3.5-flash-lite``).
 
     Args:
-        provider: fuerza un proveedor e ignora el ``.env`` (util en tests).
+        provider: fuerza un proveedor e ignora el ``.env`` (Demo: el selector
+            de la UI pasa "ollama" o "google" por peticion).
         temperature: temperatura de muestreo. 0 = respuestas deterministas.
 
     Raises:
@@ -78,6 +77,23 @@ def get_llm(provider: str | None = None, *, temperature: float = 0.0) -> BaseCha
             # Tope de la respuesta: alcanza para una respuesta RAG con citas y
             # evita gastar creditos en respuestas largas (el default es 64000).
             max_tokens=1024,
+        )
+
+    if selected == "google":
+        if not settings.google_api_key:
+            raise ValueError(
+                "LLM_PROVIDER=google requiere GOOGLE_API_KEY en el archivo .env"
+            )
+        # Import diferido: solo se carga el SDK de Google si se usa.
+        from langchain_google_genai import ChatGoogleGenerativeAI
+
+        return ChatGoogleGenerativeAI(
+            model=settings.google_chat_model,
+            api_key=settings.google_api_key,
+            temperature=temperature,
+            # Tope de la respuesta: alcanza para una respuesta RAG con citas.
+            max_tokens=1024,
+            retries=2,
         )
 
     raise ValueError(
