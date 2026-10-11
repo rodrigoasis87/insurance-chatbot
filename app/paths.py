@@ -6,7 +6,6 @@ DATA_DIR = PROJECT_ROOT / "data"
 RAW_PDFS_DIR = DATA_DIR / "raw_pdfs"
 PROCESSED_DIR = DATA_DIR / "processed"
 INDEXES_DIR = DATA_DIR / "indexes"
-GENERATED_DIR = DATA_DIR / "generated"
 
 ARTICULOS_JSONL = PROCESSED_DIR / "articulos.jsonl"
 # Salida de #7 y entrada del index build de #9 (docs/CONTRACTS.md 1.2).
@@ -21,5 +20,5 @@ COBERTURA_MD = EDA_DIR / "cobertura_articulo2.md"
 
 
 def ensure_data_dirs() -> None:
-    for directory in (RAW_PDFS_DIR, PROCESSED_DIR, INDEXES_DIR, GENERATED_DIR):
+    for directory in (RAW_PDFS_DIR, PROCESSED_DIR, INDEXES_DIR):
         directory.mkdir(parents=True, exist_ok=True)

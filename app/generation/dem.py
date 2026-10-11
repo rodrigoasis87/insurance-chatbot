@@ -18,7 +18,9 @@ from typing import Any
 
 import fitz  # PyMuPDF
 
-from app.paths import ARTICULOS_JSONL, GENERATED_DIR
+from app.paths import ARTICULOS_JSONL, DATA_DIR
+
+GENERATED_DIR = DATA_DIR / "generated"
 
 # ---------------------------------------------------------------------------
 # Dominio canónico de condiciones de perfil (docs/ONTOLOGIA.md §8)
