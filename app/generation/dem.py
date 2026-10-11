@@ -220,13 +220,13 @@ def recombinar_secciones(
 def generar_codigo_dem(seq: int | None = None) -> str:
     """Genera un código correlativo estándar DEM según docs/CONTRACTS.md §4.1.
 
-    Formato: DEM{YY}{seq:04d} (ej. DEM260001).
+    Formato: DEM{YYYY}{seq:04d} (ej. DEM20260001).
     """
-    anio_yy = datetime.now().strftime("%y")
+    anio = datetime.now().year
     if seq is None:
         # Para demo v0 sin base de datos persistente: correlativo pseudo-único
         seq = int(datetime.now().timestamp()) % 10000 or 1
-    return f"DEM{anio_yy}{seq:04d}"
+    return f"DEM{anio}{seq:04d}"
 
 
 def armar_payload_dem(
@@ -636,7 +636,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     print("=" * 60)
-    print("  RECOMBINACIÓN DEM · DEMO V0 (#36)")
+    print("  RECOMBINACIÓN DEM · DEMO V0")
     print("=" * 60)
     print(f"Código DEM   : {payload['codigo']}")
     print(f"Molde Base   : {payload['molde_base']}")
