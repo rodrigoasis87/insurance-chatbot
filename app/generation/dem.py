@@ -11,12 +11,14 @@ Cumple con:
 
 from __future__ import annotations
 
+import argparse
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-import fitz  # PyMuPDF
+import pymupdf as fitz
 
 from app.paths import ARTICULOS_JSONL, DATA_DIR
 
@@ -465,8 +467,192 @@ def generar_dem(
     return payload, ruta_pdf
 
 
-if __name__ == "__main__":
-    from app.generation.__main__ import main
-    import sys
+DEMO_ARTICULOS: list[dict[str, Any]] = [
+    {
+        "poliza": "POL320200071",
+        "documento": 1,
+        "ramo": "salud",
+        "año": "2020",
+        "familia": "salud",
+        "articulo": 1,
+        "canonico": "reglas",
+        "pagina": 1,
+        "texto": "Reglas aplicables al contrato de seguro de salud complementario.",
+    },
+    {
+        "poliza": "POL320200071",
+        "documento": 1,
+        "ramo": "salud",
+        "año": "2020",
+        "familia": "salud",
+        "articulo": 2,
+        "canonico": "cobertura",
+        "pagina": 2,
+        "texto": "La compañía aseguradora indemnizará las prestaciones ambulatorias y hospitalarias cubiertas.",
+    },
+    {
+        "poliza": "POL320200071",
+        "documento": 1,
+        "ramo": "salud",
+        "año": "2020",
+        "familia": "salud",
+        "articulo": 3,
+        "canonico": "definiciones",
+        "pagina": 3,
+        "texto": "Para los efectos de esta póliza se establecen las definiciones técnicas y contractuales aplicables.",
+    },
+    {
+        "poliza": "POL320200071",
+        "documento": 1,
+        "ramo": "salud",
+        "año": "2020",
+        "familia": "salud",
+        "articulo": 4,
+        "canonico": "exclusiones",
+        "pagina": 5,
+        "texto": "Quedan expresamente excluidas del seguro las enfermedades o dolencias preexistentes no declaradas.",
+    },
+    {
+        "poliza": "POL320200071",
+        "documento": 1,
+        "ramo": "salud",
+        "año": "2020",
+        "familia": "salud",
+        "articulo": 5,
+        "canonico": "carencia",
+        "pagina": 7,
+        "texto": "Se establece un período de carencia de 10 meses para las coberturas asociadas a embarazo y maternidad.",
+    },
+    {
+        "poliza": "POL320200071",
+        "documento": 1,
+        "ramo": "salud",
+        "año": "2020",
+        "familia": "salud",
+        "articulo": 6,
+        "canonico": "vigencia",
+        "pagina": 9,
+        "texto": "La vigencia de la póliza comenzará a las 12:00 horas del día de inicio pactado.",
+    },
+    {
+        "poliza": "POL320200071",
+        "documento": 1,
+        "ramo": "salud",
+        "año": "2020",
+        "familia": "salud",
+        "articulo": 7,
+        "canonico": "domicilio",
+        "pagina": 10,
+        "texto": "Para todos los efectos legales que emanen de este contrato las partes fijan domicilio especial en Santiago.",
+    },
+]
 
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Recombinación de cláusulas canónicas DEM demo v0 (docs/CONTRACTS.md §4.1)."
+    )
+    parser.add_argument(
+        "--molde",
+        type=str,
+        required=True,
+        help="Código de la póliza molde base del catálogo (ej. POL320200071).",
+    )
+    parser.add_argument(
+        "--perfil",
+        type=str,
+        required=True,
+        help="Perfil del cliente curado en formato JSON string o ruta a archivo JSON.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=None,
+        help="Directorio donde guardar el PDF generado (por defecto: data/generated).",
+    )
+    parser.add_argument(
+        "--articulos",
+        type=Path,
+        default=None,
+        help="Ruta alternativa a articulos.jsonl (por defecto: data/processed/articulos.jsonl).",
+    )
+    parser.add_argument(
+        "--seq",
+        type=int,
+        default=None,
+        help="Correlativo numérico opcional para el código DEM (ej. 1 -> DEM260001).",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Imprime el payload JSON completo en la salida estándar.",
+    )
+    parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Usa artículos de muestra en memoria para demostración sin requerir articulos.jsonl.",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+
+    # Cargar perfil desde JSON string o archivo
+    perfil_str = args.perfil.strip()
+    if Path(perfil_str).is_file():
+        with open(perfil_str, "r", encoding="utf-8") as f:
+            perfil = json.load(f)
+    else:
+        try:
+            perfil = json.loads(perfil_str)
+        except json.JSONDecodeError as err:
+            print(f"Error al parsear el JSON de perfil: {err}", file=sys.stderr)
+            return 1
+
+    ruta_pdf_salida = None
+    if args.output_dir:
+        ruta_pdf_salida = args.output_dir / f"temp.pdf"
+
+    articulos = None
+    if args.demo:
+        articulos = DEMO_ARTICULOS
+    elif args.articulos:
+        articulos = cargar_articulos(args.articulos)
+    elif not ARTICULOS_JSONL.exists():
+        # Modo fallback para demostración si articulos.jsonl aún no ha sido generado
+        articulos = DEMO_ARTICULOS
+
+    try:
+        payload, pdf_path = generar_dem(
+            molde=args.molde,
+            perfil=perfil,
+            articulos=articulos,
+            ruta_salida_pdf=ruta_pdf_salida,
+            seq=args.seq,
+        )
+    except Exception as err:
+        print(f"Error en la recombinación DEM: {err}", file=sys.stderr)
+        return 1
+
+    print("=" * 60)
+    print("  RECOMBINACIÓN DEM · DEMO V0 (#36)")
+    print("=" * 60)
+    print(f"Código DEM   : {payload['codigo']}")
+    print(f"Molde Base   : {payload['molde_base']}")
+    print(f"PDF Generado : {pdf_path}")
+    print(f"Secciones    : {len(payload['secciones'])} cláusulas recombinadas:")
+    for s in payload["secciones"]:
+        print(f"  - [{s['nombre']:<20}] pág. {s['pagina']:<2} (perfil: {s['perfil']}) -> {s['titulo']}")
+    print("-" * 60)
+    print(f"Aviso legal  : {payload['aviso']}")
+    print("=" * 60)
+
+    if args.json:
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+
+    return 0
+
+
+if __name__ == "__main__":
     sys.exit(main())
