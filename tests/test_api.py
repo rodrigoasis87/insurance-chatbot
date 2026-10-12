@@ -168,3 +168,91 @@ def test_año_se_deriva_del_codigo() -> None:
     assert _año("POL320130223") == "2013"
     assert _año("POL120190177") == "2019"
     assert _año("X") is None
+
+
+PERFIL_VALIDO = {
+    "edad": "30-40",
+    "preexistencias": "no",
+    "deportes_riesgo": "no",
+    "fonasa_isapre": "isapre",
+    "embarazo": "no",
+    "cronicas": "no",
+    "colectivo": "no",
+    "residencia": "chile",
+}
+
+PAYLOAD_DEM = {
+    "codigo": "DEM20260001",
+    "molde_base": "POL320200071",
+    "creado_en": "2026-10-02T00:00:00",
+    "perfil": PERFIL_VALIDO,
+    "secciones": [
+        {"nombre": "cobertura", "titulo": "COBERTURA", "pagina": 1,
+         "perfil": "base", "texto": "bloque canónico del molde"}
+    ],
+    "pdf_url": "/generated/DEM20260001.pdf",
+    "aviso": "BORRADOR · no emitida · estándar de la corredora (código DEM)",
+}
+
+
+def test_recombine_perfil_incompleto_devuelve_422() -> None:
+    perfil = {"edad": "30-40", "fonasa_isapre": "isapre"}
+    res = TestClient(app).post(
+        "/policy-recombine", json={"molde": "POL320200071", "perfil": perfil}
+    )
+    assert res.status_code == 422
+    assert "perfil" in res.json()["detail"][0]["loc"]
+
+
+def test_recombine_valor_fuera_de_vocabulario_devuelve_422() -> None:
+    res = TestClient(app).post(
+        "/policy-recombine",
+        json={"molde": "POL320200071", "perfil": {**PERFIL_VALIDO, "edad": "99"}},
+    )
+    assert res.status_code == 422
+    assert "edad" in res.json()["detail"][0]["loc"]
+
+
+def test_recombine_ok_devuelve_contrato_41(monkeypatch) -> None:
+    import app.generation.dem as gen
+
+    def fake_generar_dem(molde: str, perfil: dict, **kwargs):
+        return dict(PAYLOAD_DEM, perfil=perfil), None
+
+    monkeypatch.setattr(gen, "generar_dem", fake_generar_dem)
+    res = TestClient(app).post(
+        "/policy-recombine", json={"molde": "POL320200071", "perfil": PERFIL_VALIDO}
+    )
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["codigo"] == "DEM20260001"
+    assert payload["molde_base"] == "POL320200071"
+    assert payload["pdf_url"] == "/generated/DEM20260001.pdf"
+    assert payload["perfil"] == PERFIL_VALIDO
+
+
+def test_recombine_molde_no_encontrado_devuelve_400(monkeypatch) -> None:
+    import app.generation.dem as gen
+
+    def explota(molde: str, perfil: dict, **kwargs):
+        raise ValueError(f"Molde '{molde}' no encontrado.")
+
+    monkeypatch.setattr(gen, "generar_dem", explota)
+    res = TestClient(app).post(
+        "/policy-recombine", json={"molde": "POL999", "perfil": PERFIL_VALIDO}
+    )
+    assert res.status_code == 400
+    assert "no encontrado" in res.json()["detail"]
+
+
+def test_recombine_molde_sin_secciones_devuelve_404(monkeypatch) -> None:
+    import app.generation.dem as gen
+
+    def sin_secciones(molde: str, perfil: dict, **kwargs):
+        return dict(PAYLOAD_DEM, secciones=[]), None
+
+    monkeypatch.setattr(gen, "generar_dem", sin_secciones)
+    res = TestClient(app).post(
+        "/policy-recombine", json={"molde": "POL320200071", "perfil": PERFIL_VALIDO}
+    )
+    assert res.status_code == 404

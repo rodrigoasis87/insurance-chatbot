@@ -11,14 +11,15 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, create_model
 
+from app.generation.dem import PERFIL_SCHEMA
 from app.paths import DATA_DIR
 from app.rag.config import SUPPORTED_LLM_PROVIDERS, get_settings
 from app.rag.llm import get_llm
@@ -53,11 +54,44 @@ class ChatResponse(BaseModel):
     model: str
 
 
+def _perfil_dem_model() -> type[BaseModel]:
+    """Modelo de perfil curado (§4.1) desde el vocabulario del dominio.
+
+    ``PERFIL_SCHEMA`` (``app.generation.dem``, docs/ONTOLOGIA.md §8) es la única
+    fuente de verdad: los 8 campos son obligatorios y cada valor queda restringido
+    a las opciones curadas (sin PII). Swagger los renderiza como campos requeridos
+    con su enum, así el body pide todo el perfil (422 si falta algo).
+    """
+    return create_model(
+        "PerfilDEM",
+        **{
+            campo: (Literal[tuple(sorted(opciones))], ...)
+            for campo, opciones in PERFIL_SCHEMA.items()
+        },
+    )
+
+
+PerfilDEM = _perfil_dem_model()
+
+PERFIL_DEM_EJEMPLO = {
+    "edad": "30-40",
+    "preexistencias": "no",
+    "deportes_riesgo": "no",
+    "fonasa_isapre": "isapre",
+    "embarazo": "no",
+    "cronicas": "no",
+    "colectivo": "no",
+    "residencia": "chile",
+}
+
+
 class RecombineRequest(BaseModel):
     molde: str = Field(min_length=3, max_length=50, examples=["POL320200071"])
-    perfil: dict[str, str] = Field(
-        description="Condiciones curadas sin PII (dominio canónico, docs/ONTOLOGIA.md §8).",
-        examples=[{"edad": "30-40", "fonasa_isapre": "isapre"}],
+    perfil: PerfilDEM = Field(
+        description="Condiciones curadas sin PII. Obligatorios los 8 campos del "
+        "dominio (PERFIL_SCHEMA, docs/ONTOLOGIA.md §8): edad, preexistencias, "
+        "deportes_riesgo, fonasa_isapre, embarazo, cronicas, colectivo, residencia.",
+        examples=[PERFIL_DEM_EJEMPLO],
     )
 
 
@@ -153,7 +187,7 @@ def policy_recombine(body: RecombineRequest) -> dict[str, Any]:
     from app.generation.dem import generar_dem
 
     try:
-        payload, _pdf = generar_dem(molde=body.molde, perfil=body.perfil)
+        payload, _pdf = generar_dem(molde=body.molde, perfil=body.perfil.model_dump())
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not payload.get("secciones"):
