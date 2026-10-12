@@ -4,7 +4,8 @@ Contrato: docs/CONTRACTS.md seccion 2.
 
 * Coleccion ``polizas``, distancia Cosine, dimension = la del modelo de
   embeddings (1024 con ``qwen3-embedding:0.6b``).
-* ``search()`` devuelve ``page_content``, ``metadata`` y ``score``.
+* ``search()`` devuelve ``page_content``, ``metadata`` y ``score``, con a lo
+  sumo un hit por ``(poliza, articulo)`` (colapsa la copia embebida).
 
 Ojo: con coseno, Qdrant devuelve un score de SIMILITUD (mas alto = mas
 parecido), no una distancia como Chroma.
@@ -170,25 +171,50 @@ def _get_search_store() -> QdrantVectorStore:
     )
 
 
+def colapsar_por_articulo(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Conserva un solo hit por ``(poliza, articulo)``: el de mayor score.
+
+    El corpus trae el mismo articulo mas de una vez en dos casos: (1) la copia
+    embebida de ``POL320130223`` (doc1/doc3 dentro de ``POL320190074.pdf``, ver
+    CONTRACTS 1.1) y (2) un articulo largo partido en varios chunks. En ambos,
+    repetir el mismo articulo en el top_k no aporta contexto y le roba un lugar
+    a otro articulo. Articulos de polizas distintas nunca se colapsan aunque
+    tengan el mismo numero: la cita (poliza + pagina) es distinta.
+
+    Preserva el orden descendente de ``score``.
+    """
+    best: dict[tuple[str, int], dict[str, Any]] = {}
+    for hit in results:
+        meta = hit["metadata"]
+        key = (meta["poliza"], meta["articulo"])
+        actual = best.get(key)
+        if actual is None or hit["score"] > actual["score"]:
+            best[key] = hit
+    return sorted(best.values(), key=lambda h: h["score"], reverse=True)
+
+
 def search(
     query: str, top_k: int = 5, *, store: QdrantVectorStore | None = None
 ) -> list[dict[str, Any]]:
-    """Busca los ``top_k`` chunks mas parecidos a ``query`` (similitud coseno).
+    """Busca los ``top_k`` articulos mas parecidos a ``query`` (similitud coseno).
 
     Args:
         query: pregunta en lenguaje natural.
-        top_k: cantidad de resultados.
+        top_k: cantidad de articulos unicos a devolver.
         store: vector store a usar. Por defecto la coleccion ``polizas``.
 
     Returns:
-        Lista ordenada por score descendente. Cada item:
+        Lista ordenada por score descendente, con a lo sumo un hit por
+        ``(poliza, articulo)`` (ver :func:`colapsar_por_articulo`). Cada item:
         ``{"page_content": str, "metadata": {...contrato 1.2...}, "score": float}``.
     """
     if not query.strip():
         raise ValueError("La consulta esta vacia.")
     store = store or _get_search_store()
-    results = store.similarity_search_with_score(query, k=top_k)
-    return [
+    # Se piden el doble de candidatos: el colapso por (poliza, articulo) puede
+    # descartar varios, y asi se devuelven top_k articulos distintos igualmente.
+    results = store.similarity_search_with_score(query, k=top_k * 2)
+    hits = [
         {
             "page_content": doc.page_content,
             # langchain-qdrant agrega "_id" y "_collection_name": no son del contrato.
@@ -199,3 +225,4 @@ def search(
         }
         for doc, score in results
     ]
+    return colapsar_por_articulo(hits)[:top_k]

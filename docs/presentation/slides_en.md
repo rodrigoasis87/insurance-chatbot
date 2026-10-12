@@ -85,7 +85,7 @@ The bot establishes the **minimum client profile without asking for identifying 
 
 Findings from the **EDA** (they size the problem, they don't define it):
 
-- **9 policies** (2013–2021) · health (8) + accident (1)
+- **10 policy filings** (2013–2021) across 9 PDFs · health (9) + accident (1)
 - **227 articles** segmented across the corpus
 - **36 canonical clauses** — from coverage to terms
 - Length per article: median **~1,200 chars**; up to **25.7k chars**
@@ -158,7 +158,7 @@ Findings from the **EDA** (they size the problem, they don't define it):
 
 # Solution · Architecture in Cells
 
-MVP baseline: agent + web, **≤2 LLM calls**, answers always cited **+ generation v0 (DEM · #23)**.
+MVP baseline: agent + web, **≤2 LLM calls**, answers always cited **+ generation v0 (DEM · #36)**.
 
 ```
 Data (D1→D2) ─► RAG Engine (R1→R2) ─► Exposure (E1)
@@ -187,9 +187,9 @@ Assurance (G1) ─── validates / secures ─┘
 
 # Solution · RAG Engine — R1: Indexing & Retrieval
 
-- **Qdrant** · collection `polizas` (768 dims · cosine) + `search(query, top_k)` with **score and metadata** (#9).
-- Embeddings **`nomic-embed-text`** via Ollama (local).
-- Deterministic `point_id` → **idempotent** index build.
+- **Qdrant** · collection `polizas` (1024 dims · cosine) + `search(query, top_k)` with **score and metadata** (#9).
+- Embeddings **`qwen3-embedding:0.6b`** via Ollama (local, multilingual).
+- Deterministic `point_id` (`poliza` + `documento` + `articulo` + `chunk_index`) → **idempotent** index build.
 - Metadata **always travels with the chunk** (traceability); `SCORE_THRESHOLD` applies downstream.
 
 ---
@@ -203,7 +203,7 @@ Assurance (G1) ─── validates / secures ─┘
 3. If the context is not enough and it is in-domain → **2nd call** with `web_search` → **web source marked** (`origin: web`).
 4. If there is nothing → "not in the sources" + assistant scope.
 
-- LLM **`qwen3:4b`** local · domain guardrail · contract in `CONTRACTS.md` §3 (#17 + #8).
+- LLM **`qwen3:4b-instruct`** local · domain guardrail · contract in `CONTRACTS.md` §3 (#17 + #8).
 - **Market value/price ranges** (the corpus has no prices): answered via **cited** `web_search` as a range, never invented.
 
 ---
@@ -212,7 +212,7 @@ Assurance (G1) ─── validates / secures ─┘
 
 - **FastAPI** (`/chat`, `/health`, `/policies`, **`/policy-recombine`**) — **thin HTTP**: delegates to `query()`, no RAG logic of its own (#16).
 - **Chainlit** — chat with **visible sources**; web ones are visually differentiated (#18).
-- **Generation v0 (#23):** `/policy-recombine` → **DEM draft PDF** (canonical blocks + profile without PII; marked "DRAFT · not issued").
+- **Generation v0 (#36):** `/policy-recombine` → **DEM draft PDF** (canonical blocks + profile without PII; marked "DRAFT · not issued").
 - Single docker compose · hardened CORS · stack smoke test.
 
 ---
@@ -228,7 +228,7 @@ Assurance (G1) ─── validates / secures ─┘
 |---|---|---|
 | **M1 · Data** | #4, #7 | in progress (#4) |
 | **M2 · RAG Engine** | #9, #8, #17, #19 | next |
-| **G · Generation v0** | #23 | demo CLI → DEM PDF |
+| **G · Generation v0** | #36 | demo CLI → DEM PDF |
 | **M3 · Product** | #16, #18, #20, #21, #22 | planned |
 
 ---
@@ -240,7 +240,7 @@ Assurance (G1) ─── validates / secures ─┘
 1. Finish `articulos.jsonl` (#4) and `chunks.jsonl` (#7)
 2. Index build + `search()` (#9) and web tool (#8)
 3. Agent `query()` with citations (#17) → first demos
-4. **DEM recombination demo v0 (→ PDF, #23)**
+4. **DEM recombination demo v0 (→ PDF, #36)**
 5. Golden set + eval (#19) and product (API/UI/compose · #16–#22)
 
 **Questions?**

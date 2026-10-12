@@ -5,36 +5,60 @@ Uso:
     uv run python scripts/smoke_stack.py
 """
 
+from __future__ import annotations
+
+import sys
+from pathlib import Path
 from typing import Any
 
-from langchain_ollama import ChatOllama, OllamaEmbeddings
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-GENERATION_MODEL = "qwen3:4b"
-EMBEDDING_MODEL = "nomic-embed-text"
-QDRANT_URL = "http://localhost:6333"
+from langchain_ollama import ChatOllama, OllamaEmbeddings  # noqa: E402
+
+from app.rag.config import get_settings  # noqa: E402
+
+# Dimensiones esperadas por modelo (los defaults del stack viven en
+# app/rag/config.py; nomic-embed-text queda por si alguien lo reactiva).
+EXPECTED_DIMS = {
+    "qwen3-embedding": 1024,
+    "nomic-embed-text": 768,
+}
 
 
 def test_embeddings() -> dict[str, Any]:
     """Genera un embedding y valida sus dimensiones esperadas."""
-    embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL)
+    settings = get_settings()
+    embeddings = OllamaEmbeddings(model=settings.embedding_model)
     vector = embeddings.embed_query("¿Qué cubre una póliza catastrófica por evento?")
-    assert len(vector) == 768, f"Dimensión inesperada: {len(vector)} (se esperaba 768)"
-    return {"dims": len(vector), "sample": round(vector[0], 4)}
+    family = settings.embedding_model.split(":")[0]
+    expected = EXPECTED_DIMS.get(family)
+    if expected is not None:
+        assert len(vector) == expected, (
+            f"Dimensión inesperada: {len(vector)} (se esperaba {expected} "
+            f"para {settings.embedding_model})"
+        )
+    return {
+        "model": settings.embedding_model,
+        "dims": len(vector),
+        "sample": round(vector[0], 4),
+    }
 
 
 def test_chat() -> dict[str, Any]:
     """Envía una consulta corta y devuelve la respuesta del LLM local."""
-    llm = ChatOllama(model=GENERATION_MODEL, temperature=0)
+    settings = get_settings()
+    llm = ChatOllama(model=settings.ollama_chat_model, temperature=0)
     response = llm.invoke("Responde en una sola línea: ¿qué es una póliza catastrófica?")
-    return {"model": GENERATION_MODEL, "response": response.content[:200]}
+    return {"model": settings.ollama_chat_model, "response": response.content[:200]}
 
 
 def test_qdrant() -> dict[str, Any]:
     """Comprueba la conectividad con Qdrant (warn si el servidor no responde)."""
     import requests
 
+    url = get_settings().qdrant_url
     try:
-        resp = requests.get(f"{QDRANT_URL}/healthz", timeout=3)
+        resp = requests.get(f"{url}/healthz", timeout=3)
         return {"available": resp.status_code == 200}
     except requests.ConnectionError:
         return {"available": False, "hint": "ejecutá: docker compose up -d"}
@@ -43,13 +67,13 @@ def test_qdrant() -> dict[str, Any]:
 def main() -> None:
     print("== Smoke test stack (ADR-001) ==")
 
-    print("\n[1] Embeddings (nomic-embed-text):")
+    print(f"\n[1] Embeddings ({get_settings().embedding_model}):")
     try:
         print("   OK ->", test_embeddings())
     except Exception as exc:  # pragma: no cover
         print("   FAIL ->", exc)
 
-    print("\n[2] LLM (qwen3:4b):")
+    print(f"\n[2] LLM ({get_settings().ollama_chat_model}):")
     try:
         print("   OK ->", test_chat())
     except Exception as exc:  # pragma: no cover

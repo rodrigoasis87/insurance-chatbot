@@ -35,6 +35,10 @@ DEFAULT_ANTHROPIC_CHAT_MODEL = "claude-haiku-4-5-20251001"
 DEFAULT_EMBEDDING_MODEL = "qwen3-embedding:0.6b"
 DEFAULT_QDRANT_URL = "http://localhost:6333"
 DEFAULT_QDRANT_COLLECTION = "polizas"
+# Hard gate de retrieval (CONTRACTS §2): chunks con score menor a este valor
+# jamás llegan al prompt. Empírico sobre la coleccion real; ver
+# docs/umbral_score.md (se re-mide si cambia el modelo de embeddings).
+DEFAULT_UMBRAL_SCORE = 0.60
 
 
 def _env(name: str, default: str) -> str:
@@ -57,6 +61,7 @@ class Settings:
     embedding_model: str
     qdrant_url: str
     qdrant_collection: str
+    umbral_score: float
 
 
 def get_settings() -> Settings:
@@ -72,4 +77,5 @@ def get_settings() -> Settings:
         embedding_model=_env("EMBEDDING_MODEL", DEFAULT_EMBEDDING_MODEL),
         qdrant_url=_env("QDRANT_URL", DEFAULT_QDRANT_URL),
         qdrant_collection=_env("QDRANT_COLLECTION", DEFAULT_QDRANT_COLLECTION),
+        umbral_score=float(_env("UMBRAL_SCORE", str(DEFAULT_UMBRAL_SCORE))),
     )
