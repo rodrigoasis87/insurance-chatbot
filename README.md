@@ -90,11 +90,12 @@ El retrieval filtra por un score mínimo configurable (env `UMBRAL_SCORE`, defau
 umbral y cómo re-medirlo al cambiar de embeddings/chunking: `docs/umbral_score.md`
 (ADR-004).
 
-Para validar el parser, el retrieval y ejecutar la suite de pruebas:
+Para validar el parser, el retrieval, la búsqueda web y ejecutar la suite de pruebas:
 
 ```bash
 uv run python scripts/test_parser.py      # parser: 227 artículos + familias
 uv run python scripts/test_vectordb.py    # smoke del index/retrieval contra Qdrant
+uv run python scripts/test_search.py      # búsqueda web real (necesita internet) + fallback sin red
 uv run pytest                             # suite con mocks (sin Docker)
 uv run python scripts/analisis_umbral.py  # re-mide scores → data/processed/umbral_raw.json
 ```
