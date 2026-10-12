@@ -10,7 +10,11 @@ prueba del issue fue la unica opcion que devolvio resultados chilenos
 relevantes.
 
 Nunca rompe el pipeline: red caida, timeout, rate limit o "sin resultados" se
-traducen a ``[]`` y a un mensaje legible para el agente.
+traducen a ``[]`` y a un mensaje legible para el agente. Quien llama (``query()``
+de #17) decide que responder cuando la lista viene vacia.
+
+Cada resultado es un ``WebResult`` (``TypedDict``): sigue siendo un dict (se
+serializa directo a JSON), pero el editor y pyright validan las claves.
 
 Para #17 hay dos helpers que fijan el formato web del contrato:
 ``to_sources()`` (entradas ``origen: "web"`` de ``sources``) y
@@ -28,7 +32,7 @@ Uso:
 from __future__ import annotations
 
 import logging
-from typing import Any, Protocol
+from typing import Any, Protocol, TypedDict
 from urllib.parse import urlparse
 
 from ddgs import DDGS
@@ -66,6 +70,14 @@ WEB_CONTEXT_HEADER = (
 )
 
 
+class WebResult(TypedDict):
+    """Un resultado web citable (contrato de #8)."""
+
+    titulo: str
+    url: str
+    snippet: str
+
+
 class TextSearcher(Protocol):
     """Lo unico que se usa del cliente: ``DDGS.text()``. Permite inyectar mocks."""
 
@@ -77,7 +89,7 @@ def web_search_with_status(
     max_results: int = DEFAULT_MAX_RESULTS,
     *,
     client: TextSearcher | None = None,
-) -> tuple[list[dict[str, str]], str | None]:
+) -> tuple[list[WebResult], str | None]:
     """Busca en la web y devuelve los resultados junto al motivo si no hubo.
 
     Args:
@@ -87,7 +99,7 @@ def web_search_with_status(
 
     Returns:
         ``(resultados, mensaje)``. ``resultados`` es una lista de
-        ``{"titulo": str, "url": str, "snippet": str}``. ``mensaje`` es
+        ``WebResult`` (``{"titulo", "url", "snippet"}``). ``mensaje`` es
         ``None`` si hubo resultados, o un texto legible que explica por que la
         lista esta vacia.
     """
@@ -127,7 +139,7 @@ def web_search_with_status(
     return results, None
 
 
-def web_search(query: str, max_results: int = DEFAULT_MAX_RESULTS) -> list[dict[str, str]]:
+def web_search(query: str, max_results: int = DEFAULT_MAX_RESULTS) -> list[WebResult]:
     """Busca en la web del rubro (contrato de #8).
 
     Args:
@@ -135,7 +147,7 @@ def web_search(query: str, max_results: int = DEFAULT_MAX_RESULTS) -> list[dict[
         max_results: tope de resultados a devolver.
 
     Returns:
-        Lista de ``{"titulo": str, "url": str, "snippet": str}``. Si la busqueda
+        Lista de ``WebResult`` (``{"titulo", "url", "snippet"}``). Si la busqueda
         falla o no encuentra nada devuelve ``[]``; el motivo queda en el log y
         se obtiene con ``web_search_with_status()``.
     """
@@ -153,7 +165,7 @@ def web_domain(url: str) -> str:
     return host.removeprefix("www.") or url
 
 
-def to_sources(results: list[dict[str, str]]) -> list[dict[str, str]]:
+def to_sources(results: list[WebResult]) -> list[dict[str, str]]:
     """Convierte resultados web en entradas de ``sources`` (contrato seccion 3).
 
     Args:
@@ -174,7 +186,7 @@ def to_sources(results: list[dict[str, str]]) -> list[dict[str, str]]:
     return sources
 
 
-def format_web_context(results: list[dict[str, str]], message: str | None = None) -> str:
+def format_web_context(results: list[WebResult], message: str | None = None) -> str:
     """Arma el bloque de resultados web para el prompt de la 2.a llamada LLM.
 
     Cada resultado lleva su etiqueta de cita lista para copiar, asi el LLM no
@@ -197,12 +209,12 @@ def format_web_context(results: list[dict[str, str]], message: str | None = None
     return WEB_CONTEXT_HEADER + "\n\n" + "\n\n".join(blocks)
 
 
-def _normalize(raw: list[dict[str, Any]], max_results: int) -> list[dict[str, str]]:
+def _normalize(raw: list[dict[str, Any]], max_results: int) -> list[WebResult]:
     """Pasa ``{title, href, body}`` de ddgs al formato del contrato.
 
     Descarta resultados sin URL http(s) y URLs repetidas, y limpia espacios.
     """
-    results: list[dict[str, str]] = []
+    results: list[WebResult] = []
     seen: set[str] = set()
     for item in raw:
         url = str(item.get("href") or "").strip()
@@ -210,11 +222,11 @@ def _normalize(raw: list[dict[str, Any]], max_results: int) -> list[dict[str, st
             continue
         seen.add(url)
         results.append(
-            {
-                "titulo": _clean(item.get("title")) or url,
-                "url": url,
-                "snippet": _clean(item.get("body")),
-            }
+            WebResult(
+                titulo=_clean(item.get("title")) or url,
+                url=url,
+                snippet=_clean(item.get("body")),
+            )
         )
         if len(results) >= max_results:
             break

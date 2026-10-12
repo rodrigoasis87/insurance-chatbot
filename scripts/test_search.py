@@ -37,6 +37,7 @@ from ddgs.exceptions import RatelimitException, TimeoutException  # noqa: E402
 
 import app.rag.web_search as ws  # noqa: E402
 from app.rag.web_search import (  # noqa: E402
+    WebResult,
     format_web_context,
     to_sources,
     web_search,
@@ -58,7 +59,7 @@ DEAD_PROXY = "http://127.0.0.1:9"
 EXPECTED_KEYS = {"titulo", "url", "snippet"}
 
 
-def check_shape(results: list[dict[str, str]], max_results: int) -> list[str]:
+def check_shape(results: list[WebResult], max_results: int) -> list[str]:
     """Valida el contrato de cada resultado. Devuelve los problemas encontrados."""
     problems: list[str] = []
     if len(results) > max_results:
@@ -75,7 +76,7 @@ def check_shape(results: list[dict[str, str]], max_results: int) -> list[str]:
     return problems
 
 
-def check_live(queries: list[str], max_results: int) -> tuple[list[str], list[dict[str, str]]]:
+def check_live(queries: list[str], max_results: int) -> tuple[list[str], list[WebResult]]:
     """Corre busquedas reales.
 
     Una consulta sin resultados es un aviso (el buscador varia); que ninguna
@@ -85,7 +86,7 @@ def check_live(queries: list[str], max_results: int) -> tuple[list[str], list[di
         ``(fallos, resultados de la primera consulta con resultados)``.
     """
     failures: list[str] = []
-    first_hit: list[dict[str, str]] = []
+    first_hit: list[WebResult] = []
     hits = 0
 
     print(f"     {'consulta':<56} {'n':>2}  {'seg':>4}  dominios")
@@ -116,7 +117,7 @@ def check_live(queries: list[str], max_results: int) -> tuple[list[str], list[di
     return failures, first_hit
 
 
-def check_sources(results: list[dict[str, str]]) -> list[str]:
+def check_sources(results: list[WebResult]) -> list[str]:
     """Muestra y valida lo que recibiria query() de #17 con resultados reales."""
     if not results:
         return []
