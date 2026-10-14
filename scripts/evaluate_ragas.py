@@ -1,0 +1,441 @@
+"""Run the curated local RAG evaluation and save a reproducible report.
+
+Usage:
+    uv run --group eval python scripts/evaluate_ragas.py --limit 1
+    uv run --group eval python scripts/evaluate_ragas.py
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import hashlib
+import json
+import os
+import random
+import subprocess
+import sys
+import types
+import time
+from collections import Counter
+from datetime import datetime, timezone
+from pathlib import Path
+from statistics import mean
+from typing import Any
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from app.rag.config import get_settings  # noqa: E402
+from app.rag.llm import get_llm  # noqa: E402
+from app.rag.query import NO_EN_FUENTES, query  # noqa: E402
+from app.rag.vectordb import get_client, search  # noqa: E402
+from app.rag.web_search import web_search  # noqa: E402
+
+GOLDEN_PATH = ROOT / "data/evaluation/ragas_golden.jsonl"
+RESULTS_ROOT = ROOT / "data/evaluation/results"
+BEHAVIORS = (
+    "answer_from_policy",
+    "answer_from_web",
+    "abstain_personal_information",
+    "abstain_insufficient_information",
+    "abstain_missing_information",
+    "abstain_missing_contact",
+)
+
+
+def _progress(message: str) -> None:
+    """Print an unbuffered progress line for long local model operations."""
+    stamp = datetime.now().astimezone().strftime("%H:%M:%S")
+    print(f"[{stamp}] {message}", flush=True)
+
+
+def _load_ragas():
+    """Import RAGAS 0.4.x with a shim for its unused legacy VertexAI import.
+
+    RAGAS 0.4.3 imports this optional integration unconditionally, although
+    this evaluator uses only Ollama. langchain-community 0.4.2 removed the old
+    module. Provide a placeholder class solely for RAGAS's isinstance list;
+    no VertexAI client or request is created.
+    """
+    os.environ.setdefault("RAGAS_DO_NOT_TRACK", "true")
+
+    import langchain_community.chat_models as chat_models
+
+    module_name = "langchain_community.chat_models.vertexai"
+    module = types.ModuleType(module_name)
+    module.ChatVertexAI = type("ChatVertexAI", (), {})
+    sys.modules[module_name] = module
+    chat_models.vertexai = module
+
+    import ragas
+    from openai import AsyncOpenAI
+    from ragas.llms import llm_factory
+    from ragas.metrics.collections import (
+        ContextPrecisionWithReference,
+        ContextRecall,
+        Faithfulness,
+    )
+
+    return ragas, AsyncOpenAI, llm_factory, {
+        "faithfulness": Faithfulness,
+        "context_recall": ContextRecall,
+        "context_precision": ContextPrecisionWithReference,
+    }
+
+
+def _load_golden() -> list[dict[str, Any]]:
+    rows = []
+    with GOLDEN_PATH.open(encoding="utf-8") as stream:
+        for line_number, line in enumerate(stream, start=1):
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"JSON inválido en línea {line_number}: {exc}") from exc
+            required = {"id", "question", "reference_answer", "expected_behavior"}
+            missing = required - row.keys()
+            if missing:
+                raise ValueError(
+                    f"Línea {line_number}: faltan campos {sorted(missing)}"
+                )
+            rows.append(row)
+    if not rows:
+        raise ValueError(f"El golden set está vacío: {GOLDEN_PATH}")
+    ids = [row["id"] for row in rows]
+    if len(ids) != len(set(ids)):
+        raise ValueError("El golden set contiene IDs duplicados")
+    unknown = {row["expected_behavior"] for row in rows} - set(BEHAVIORS)
+    if unknown:
+        raise ValueError(f"expected_behavior no reconocido: {sorted(unknown)}")
+    return rows
+
+
+def _expected_hit(row: dict[str, Any], trace: dict[str, Any]) -> bool | None:
+    expected = row.get("reference_contexts", [])
+    if not expected:
+        return None
+    wanted = {
+        (item.get("poliza"), item.get("documento"), item.get("articulo"))
+        for item in expected
+    }
+    found = {
+        (
+            hit["metadata"].get("poliza"),
+            hit["metadata"].get("documento"),
+            hit["metadata"].get("articulo"),
+        )
+        for hit in trace.get("retrieval_hits", [])
+    }
+    return bool(wanted & found)
+
+
+async def _score_policy_answer(
+    row: dict[str, Any],
+    response: str,
+    contexts: list[str],
+    metrics: dict[str, Any],
+    metric_names: list[str],
+) -> dict[str, Any]:
+    if not contexts:
+        return {"skipped": "sin contextos posteriores al hard gate"}
+    scores: dict[str, Any] = {}
+    for name in metric_names:
+        metric = metrics[name]
+        _progress(f"juez RAGAS: iniciando {name}")
+        metric_started = time.monotonic()
+        try:
+            if name == "faithfulness":
+                result = await metric.ascore(
+                    user_input=row["question"],
+                    response=response,
+                    retrieved_contexts=contexts,
+                )
+            else:
+                result = await metric.ascore(
+                    user_input=row["question"],
+                    reference=row["reference_answer"],
+                    retrieved_contexts=contexts,
+                )
+            scores[name] = result.value
+            _progress(
+                f"juez RAGAS: {name} = {result.value} "
+                f"({time.monotonic() - metric_started:.1f} s)"
+            )
+        except Exception as exc:  # Keep other metric scores and questions usable.
+            scores[name] = {"error": f"{type(exc).__name__}: {exc}"}
+            _progress(
+                f"juez RAGAS: {name} falló tras "
+                f"{time.monotonic() - metric_started:.1f} s: "
+                f"{type(exc).__name__}: {exc}"
+            )
+    return scores
+
+
+def _run_metadata(ragas_version: str) -> dict[str, Any]:
+    settings = get_settings()
+    try:
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        commit = None
+    corpus = ROOT / "data/processed/articulos.jsonl"
+    corpus_hash = (
+        hashlib.sha256(corpus.read_bytes()).hexdigest() if corpus.exists() else None
+    )
+    collection = get_client().get_collection(settings.qdrant_collection)
+    return {
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "git_commit": commit,
+        "ragas_version": ragas_version,
+        "generator_model": settings.ollama_chat_model,
+        "judge_model": settings.ollama_chat_model,
+        "ollama_base_url": settings.ollama_base_url,
+        "embedding_model": settings.embedding_model,
+        "qdrant_url": settings.qdrant_url,
+        "qdrant_collection": settings.qdrant_collection,
+        "qdrant_points_count": collection.points_count,
+        "qdrant_status": str(collection.status),
+        "corpus_sha256": corpus_hash,
+        "score_threshold": settings.umbral_score,
+        "top_k": 5,
+    }
+
+
+async def run(args: argparse.Namespace) -> Path:
+    if args.n is not None and args.limit:
+        raise ValueError("Usa --n o --limit, no ambos")
+    _progress("cargando RAGAS y sus métricas")
+    ragas, async_openai, llm_factory, metric_classes = _load_ragas()
+    _progress("validando el conjunto de referencia")
+    rows = _load_golden()
+    if args.behavior:
+        rows = [row for row in rows if row["expected_behavior"] == args.behavior]
+    if args.n is not None:
+        if args.n < 1:
+            raise ValueError("--n debe ser al menos 1")
+        if args.n > len(rows):
+            raise ValueError(
+                f"--n={args.n} supera las {len(rows)} preguntas disponibles "
+                "después de aplicar los filtros"
+            )
+        rows = random.Random(args.seed).sample(rows, args.n)
+    elif args.limit:
+        rows = rows[: args.limit]
+    if not rows:
+        raise ValueError("No hay preguntas para ejecutar con estos filtros")
+
+    _progress(f"preparando ejecución: {len(rows)} preguntas; métricas={args.metrics}")
+    settings = get_settings()
+    _progress("consultando estado de Qdrant y registrando configuración")
+    metadata = _run_metadata(ragas.__version__)
+    metadata["metrics"] = args.metrics
+    metadata["judge_max_tokens"] = args.judge_max_tokens
+    metadata["sample_seed"] = args.seed if args.n is not None else None
+    metadata["selected_question_ids"] = [row["id"] for row in rows]
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    run_dir = RESULTS_ROOT / run_id
+    run_dir.mkdir(parents=True, exist_ok=False)
+    (run_dir / "run.json").write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
+    client = async_openai(
+        base_url=f"{settings.ollama_base_url.rstrip('/')}/v1",
+        api_key="ollama",
+        timeout=args.timeout,
+    )
+    judge = llm_factory(
+        settings.ollama_chat_model,
+        client=client,
+        temperature=0.0,
+        max_tokens=args.judge_max_tokens,
+    )
+    metrics = {
+        name: metric_classes[name](llm=judge) for name in args.metrics
+    }
+    _progress(
+        f"iniciando evaluación; generador/juez={settings.ollama_chat_model}; "
+        f"resultados={run_dir.relative_to(ROOT)}"
+    )
+
+    search_fn = lambda question, top_k: search(question, top_k=top_k)
+    web_fn = lambda question, max_results=5: web_search(
+        question, max_results=max_results
+    )
+    output_rows = []
+    results_path = run_dir / "results.jsonl"
+    try:
+        for index, golden in enumerate(rows, start=1):
+            case_started = time.monotonic()
+            _progress(f"caso [{index}/{len(rows)}] {golden['id']}: consulta RAG")
+            trace: dict[str, Any] = {}
+            response = query(
+                golden["question"],
+                top_k=5,
+                use_web=not args.no_web,
+                llm=get_llm(),
+                search_fn=search_fn,
+                web_fn=web_fn,
+                trace=trace,
+                progress=lambda stage: _progress(
+                    f"caso [{index}/{len(rows)}] {golden['id']}: {stage}"
+                ),
+            )
+            behavior = golden["expected_behavior"]
+            expected_hit = _expected_hit(golden, trace)
+            actual_sources = response["sources"]
+            is_abstention = behavior.startswith("abstain_")
+            row_result: dict[str, Any] = {
+                "id": golden["id"],
+                "question": golden["question"],
+                "expected_behavior": behavior,
+                "actual_route": trace.get("route"),
+                "expected_context_retrieved": expected_hit,
+                "expected_abstention_complied": (
+                    trace.get("route") == "abstain"
+                    and response["answer"] == NO_EN_FUENTES
+                    if is_abstention
+                    else None
+                ),
+                "web_source_returned": any(
+                    source.get("origen") == "web" for source in actual_sources
+                ),
+                "answer": response["answer"],
+                "sources": actual_sources,
+                "retrieved_contexts": trace.get("answer_contexts", []),
+                "policy_retrieved_contexts": trace.get(
+                    "policy_retrieved_contexts", []
+                ),
+                "web_retrieved_contexts": trace.get("web_retrieved_contexts", []),
+                "policy_retrieval_hits": trace.get("retrieval_hits", []),
+            }
+            if behavior == "answer_from_policy":
+                row_result["ragas"] = await _score_policy_answer(
+                    golden,
+                    response["answer"],
+                    trace.get("answer_contexts", []),
+                    metrics,
+                    args.metrics,
+                )
+            else:
+                _progress(
+                    f"caso [{index}/{len(rows)}] {golden['id']}: "
+                    "sin métricas RAGAS para este comportamiento"
+                )
+            output_rows.append(row_result)
+            with results_path.open("a", encoding="utf-8") as stream:
+                stream.write(json.dumps(row_result, ensure_ascii=False) + "\n")
+            print(
+                f"[{index}/{len(rows)}] {golden['id']} route={trace.get('route')} "
+                f"expected_hit={expected_hit} "
+                f"elapsed={time.monotonic() - case_started:.1f}s",
+                flush=True,
+            )
+    finally:
+        await client.close()
+
+    behavior_totals: dict[str, Any] = {}
+    for behavior in sorted({row["expected_behavior"] for row in output_rows}):
+        subset = [row for row in output_rows if row["expected_behavior"] == behavior]
+        expected_hits = [
+            row["expected_context_retrieved"]
+            for row in subset
+            if row["expected_context_retrieved"] is not None
+        ]
+        behavior_totals[behavior] = {
+            "count": len(subset),
+            "routes": dict(Counter(row["actual_route"] for row in subset)),
+            "expected_context_recall_at_k": (
+                mean(expected_hits) if expected_hits else None
+            ),
+            "abstention_compliance": (
+                mean(
+                    row["expected_abstention_complied"]
+                    for row in subset
+                    if row["expected_abstention_complied"] is not None
+                )
+                if any(row["expected_abstention_complied"] is not None for row in subset)
+                else None
+            ),
+            "web_routing_rate": (
+                mean(row["web_source_returned"] for row in subset)
+                if behavior == "answer_from_web"
+                else None
+            ),
+        }
+
+    metric_totals = {}
+    for name in args.metrics:
+        values = [
+            result["ragas"][name]
+            for result in output_rows
+            if isinstance(result.get("ragas", {}).get(name), (int, float))
+        ]
+        metric_totals[name] = {
+            "mean": mean(values) if values else None,
+            "scored": len(values),
+            "errors": sum(
+                isinstance(result.get("ragas", {}).get(name), dict)
+                and "error" in result["ragas"][name]
+                for result in output_rows
+            ),
+        }
+    summary = {
+        "metadata": metadata,
+        "questions_run": len(output_rows),
+        "by_behavior": behavior_totals,
+        "ragas_metrics": metric_totals,
+    }
+    _progress("escribiendo resumen agregado")
+    (run_dir / "summary.json").write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    print(f"Resultados guardados en {run_dir.relative_to(ROOT)}")
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
+    return run_dir
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--limit", type=int, default=0, help="máximo de casos (0 = todos)"
+    )
+    parser.add_argument(
+        "--n",
+        type=int,
+        help="selecciona N preguntas aleatorias sin reemplazo",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        help="semilla opcional para repetir la misma muestra de --n",
+    )
+    parser.add_argument("--behavior", choices=BEHAVIORS, help="filtra el tipo de caso")
+    parser.add_argument(
+        "--no-web", action="store_true", help="no ejecutar búsquedas web"
+    )
+    parser.add_argument("--timeout", type=float, default=180.0)
+    parser.add_argument(
+        "--metrics",
+        nargs="+",
+        choices=("faithfulness", "context_recall", "context_precision"),
+        default=("faithfulness", "context_recall", "context_precision"),
+    )
+    parser.add_argument(
+        "--judge-max-tokens",
+        type=int,
+        default=1024,
+        help="límite de salida para cada respuesta estructurada del juez",
+    )
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    asyncio.run(run(parse_args()))

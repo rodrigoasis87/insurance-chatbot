@@ -87,6 +87,30 @@ uv run python -m app.data.chunker          # articulos.jsonl → chunks.jsonl
 uv run python -m app.rag.indexer           # chunks.jsonl → Qdrant
 ```
 
+Para evaluar el RAG con el conjunto RAGAS (requiere Qdrant y Ollama activos;
+`uv` instala el grupo `eval` si hace falta):
+
+```bash
+uv run --group eval python scripts/evaluate_ragas.py
+```
+
+Para un piloto rápido de una pregunta de póliza, sin búsqueda web:
+
+```bash
+uv run --group eval python scripts/evaluate_ragas.py \
+  --limit 1 --behavior answer_from_policy --no-web --metrics faithfulness
+```
+
+Para evaluar dos preguntas aleatorias de póliza; agrega `--seed 42` si quieres
+repetir exactamente la misma muestra:
+
+```bash
+uv run --group eval python scripts/evaluate_ragas.py \
+  --n=2 --behavior answer_from_policy --no-web --metrics faithfulness
+```
+
+Los resultados se guardan en `data/evaluation/results/`.
+
 Los archivos generados quedan en `data/processed/` y están ignorados por Git:
 
 ```text
