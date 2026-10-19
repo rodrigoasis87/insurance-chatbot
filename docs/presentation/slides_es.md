@@ -249,6 +249,51 @@ G1 (transversal) ▶ pytest · golden set (#19) · compose · demo video
 
 ---
 
+# Solución · G1 · Dónde viven las garantías - Luis
+
+G1 **no es runtime**: es la caja transversal del diagrama, **fuera del hot path** del usuario.
+
+```
+      Motor RAG ──┐                ┌─ pytest (#20) · sin Docker
+      Generación ─┼─► G1 (offline) ─┼─ golden set + RAGAS (#19)
+      Exposición ─┘   fuera del     └─ compose · README · demo video
+   (answer, PDF, logs) hot path
+        ▲ artefactos (question · contexts · answer · sources)
+        └──► retroalimenta umbral / chunking / prompts
+```
+
+- Corre **offline** sobre los artefactos que produce el pipeline — nunca dentro del flujo del usuario.
+- **Sin latencia** para el usuario; sí agrega un **circuito de retroalimentación**: sus resultados ajustan umbral, chunking y prompts.
+- Precedente en el diagrama: la caja G1 siempre fue "transversal"; acá se la detalla.
+
+---
+
+# Solución · G1 · Métricas de calidad - Luis
+
+| Eje | Métrica (RAGAS) | Qué mide | Promesa del producto |
+|---|---|---|---|
+| Retrieval | Context Recall | ¿cuánta de la ground truth recuperó? | `recall@k` / Hit@k (#19) |
+| Retrieval | Context Precision | chunks relevantes arriba, sin boilerplate | calidad de slots y orden |
+| Generación | **Faithfulness** | ¿cada afirmación se sostiene en los contexts? | **0 alucinación** |
+| Generación | Answer Relevancy / Correctness | responde lo preguntado y coincide con la gold | calidad de la respuesta final |
+| Propias (a codear) | `cita_ok` · marcación web | citas `[POL · Art. N]` válidas; `origen: web` correcto | trazabilidad (CONTRACTS §3) |
+
+- **RAGAS** = herramienta elegida para el eval de #19 (en implementación).
+- No reemplaza lo propio: `cita_ok` y la marcación de web se **codean aparte** (RAGAS evalúa contra contexts, no contra el formato de cita).
+
+---
+
+# Solución · G1 · Impacto en la calidad del producto - Luis
+
+- **KPI medible** en vez de "la demo anda bien": `faithfulness 0.94` es comparable entre corridas.
+- **Detector de regresión**: umbral, chunking o embeddings se justifican con **delta de métrica**, no con intuición.
+- **Verifica el claim central**: "0 alucinación con trazabilidad" hoy es solo instrucción de prompt — Faithfulness lo mide.
+- **Valida inversiones**: híbrida o re-ranking pasan de fe a **A/B con número**.
+- **Baseline honesto**: Hit@1 65% como línea base; el eval extiende al lado generativo, que está en cero.
+- **Salvedad (LLM-as-judge):** el juez también se equivoca → modelo juez fijo y distinto del evaluado, reportar el n del golden set, tratar los números como **tendencias**; si cambia el stack, re-medir (ADR-004).
+
+---
+
 # Solución · Post-MVP: orquestación con LangGraph - Rodrigo
 
 Mismos componentes y contratos (**≤2 llamadas LLM**, `UMBRAL_SCORE` en código, `sources[]`): cambia **solo el orquestador**.
