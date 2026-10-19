@@ -1,6 +1,25 @@
 # Evaluación RAG con RAGAS
 
-Estado: **runner implementado; piloto de extremo a extremo completado para una pregunta y Faithfulness**.
+Estado: **runner implementado; cierre de #19 con `cita_ok` determinista, juez
+configurable (`--judge ollama|google`), reporte versionado `docs/eval/LATEST.md`
+y tests de la lógica de evaluación.** El piloto de extremo a extremo sigue
+pendiente de una corrida completa por el costo local del juez (minutos por caso).
+
+## Cierre de #19 (qué se agregó)
+
+- **`app/rag/eval.py`**: lógica pura y testeable — `load_golden`, `expected_hit`,
+  `cita_ok`. El runner (`scripts/evaluate_ragas.py`) la importa.
+- **`cita_ok`** (DoD de #19): métrica determinista que valida que cada cita
+  inline (`[fuente: POL… · Art. N]`, `[fuente web: <url>]`) exista en las fuentes
+  devueltas. Se reporta por fila y agregada por comportamiento.
+- **`--judge ollama|google`**: el juez por defecto es local (`qwen3:4b-instruct`);
+  con `--judge google` usa Gemini vía el endpoint compatible con OpenAI (sin
+  sumar `litellm`). El reporte registra generador y juez por separado.
+- **`--report-doc docs/eval/LATEST.md`**: vuelca el resumen a Markdown
+  versionado (los crudos siguen en `data/evaluation/results/`, gitignored).
+- **`--exclude-behavior`**: deja los 20 casos web fuera de la corrida base.
+- **`tests/test_rag_eval.py`**: 18 tests puros de `cita_ok`, `load_golden` y
+  `expected_hit`.
 
 ## Qué hay y qué falta
 
