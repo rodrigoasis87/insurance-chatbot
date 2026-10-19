@@ -156,23 +156,39 @@ Hallazgos del **EDA** (dimensionan el problema, no lo definen):
 
 ---
 
-# Solución · Arquitectura en células - Julian
+# Solución · Arquitectura del MVP (componentes) - Julian
 
-Baseline del MVP: agent + web, **≤2 llamadas LLM**, respuestas siempre citadas **+ generación v0 (DEM · #36)**.
+Baseline del MVP: agente + web, **≤2 llamadas LLM**, respuestas siempre citadas **+ generación v0 (DEM · #36)**.
 
 ```
-Datos (D1→D2) ─► Motor RAG (R1→R2) ─► Exposición (E1)
-                          │
-Generación (R3) ◄─ recombinar DEM (demo v0)
-                          ▲
-Garantías (G1) ─── valida / asegura ─┘
+S3 ─► Parser+limpieza ─► articulos.jsonl (227)
+        └─► Chunking 1000/150 ─► chunks.jsonl (758)
+                 └─► embeddings qwen3-embedding:0.6b (1024d)
+                          ▼
+                 Qdrant · colección `polizas`
+                   search()  *hybrid: vectorial + BM25 (RRF)
+                          ▼
+                 query(): gate UMBRAL_SCORE ─► 1.ª LLM grounded
+                   └─ NEED_WEB + rubro ─► web_search (DDG) ─► 2.ª LLM
+                   ≤2 llamadas LLM · ≤1 web · citas [POL · Art. N]
+                          ▼
+                 FastAPI: /chat · /chat/stream · /health
+                          /policies · /policy-recombine
+                   *auth (API key)
+                          ▼
+                 Chainlit (fuentes + streaming)   *sesión por conversación
+                 app/generation/dem.py ─► PDF DEM "BORRADOR · no emitida"
+                   *UI de generación DEM
+
+G1 (transversal) ▶ pytest · golden set (#19) · compose · demo video
 ```
 
-- **Datos:** D1 captura y limpieza → D2 chunking
-- **Motor RAG:** R1 indexación y retrieval → **R2 agente + web**
-- **Generación:** R3 **recombinación DEM v0** (bloques canónicos + perfil → PDF borrador)
-- **Exposición:** E1 API + UI
-- **Garantías:** G1 QA, eval y ops (transversal)
+- **Datos (D1+D2):** S3 → parser/limpieza → 227 artículos → 758 chunks (no cruzan artículo).
+- **Motor RAG (R1+R2):** Qdrant `polizas` (1024d) → gate `UMBRAL_SCORE` → agente ≤2 llamadas con citas + web marcada.
+- **Generación (R3):** recombinación DEM v0 → PDF borrador (sin emisión).
+- **Exposición (E1):** FastAPI delgado + Chainlit con fuentes visibles.
+- **Garantías (G1):** QA/eval/ops transversal.
+- **`*` Mejoras MVP:** hybrid search · auth (API key) · sesión por conversación · UI de generación DEM.
 
 ---
 
@@ -230,6 +246,36 @@ Garantías (G1) ─── valida / asegura ─┘
 | **M2 · Motor RAG** | #9, #8, #17, #19 | próximo |
 | **G · Generación v0** | #36 | demo CLI → PDF DEM |
 | **M3 · Producto** | #16, #18, #20, #21, #22 | planificado |
+
+---
+
+# Solución · Post-MVP: orquestación con LangGraph - Rodrigo
+
+Mismos componentes y contratos (**≤2 llamadas LLM**, `UMBRAL_SCORE` en código, `sources[]`): cambia **solo el orquestador**.
+
+```
+pregunta (thread_id)
+     │
+     ▼
+retrieve ─► gate(UMBRAL) ─► generate
+                              │
+                 ┌────────────┴────────────┐
+                 │ ¿NEED_WEB y es del rubro?│
+                 └────────────┬────────────┘
+                    sí ───────┘        └─────── no ──► answer + sources[]
+                     │
+                     ▼
+            web_search ─► generate_web ─► answer + sources[]
+
+astream_events: status · token · sources  ──►  API / UI
+checkpointer: estado + historial por conversación (thread_id)
+```
+
+- **Un grafo, dos consumos:** `.invoke()` (sync) y `.astream()` (SSE) → desaparece la duplicación `query()` / `query_stream()`.
+- **Checkpointer:** sesión por conversación persistente sin código propio de sesiones.
+- **`astream_events`:** eventos por nodo (reemplaza el peek manual de `NEED_WEB`).
+- **Trazas por nodo:** eval de caminos del golden set (grounded / web / no-fuente).
+- **Sin features nuevos;** los nodos futuros (clasificador de intención, DEM→POL) se enchufan al mismo grafo.
 
 ---
 
