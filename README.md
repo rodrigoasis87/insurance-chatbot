@@ -200,5 +200,5 @@ La demo lo muestra en el **paso 6** de `demo_recorrido`.
 - [x] UI demo: Chainlit consumiendo el API por HTTP (no `query()` directo) — #18 · CONTRACTS §4
 - [x] Ops demo: `docker compose` único (Qdrant + Ollama + API + UI) — #21
 - [x] Demo ext: streaming SSE (`/chat/stream`) + LLM intercambiable con toggle en la UI (local ↔ cloud) — ADR-006
-- [ ] Generación DEM (recombinación demo v0) — #36
+- [x] Generación DEM (recombinación demo v0): CLI + `POST /policy-recombine` + PDF borrador — #36
 - [ ] QA/eval (golden set, demo day) — #19, #20, #22

@@ -21,13 +21,13 @@ MVP y el flujo con las dos extensiones de futuro.
 | Datos | D1 · Captura y limpieza | PDFs (S3) → parser → `articulos.jsonl` (227 art. + metadata) | #4 | ✅ hecho |
 | Datos | D2 · Chunking | chunks 1000/150 que nunca cruzan artículo → `chunks.jsonl` | #7 | ✅ hecho |
 | Motor RAG | R1 · Indexación y retrieval | embeddings `qwen3-embedding:0.6b` + Qdrant `polizas` (1024d) + `search()` con colapso por `(poliza, articulo)` | #9 | ✅ hecho |
-| Motor RAG | R2 · Generación con citas / agente | `query()` ≤2 llamadas LLM (`qwen3:4b-instruct`) + `web_search` | #17, #8 | ⚠ pendiente |
-| Generación | R3 · Recombinación DEM (**demo v0**) | `app/generation/` → `/policy-recombine` → **PDF borrador DEM** (bloques canónicos + perfil sin PII; sin emisión) | #36 | ⚠ pendiente |
-| Exposición | E1 · API y UI | FastAPI delgado + Chainlit con fuentes visibles | #16, #18 | ⚠ pendiente |
-| Garantías | G1 · QA, eval, ops | pytest con mocks · golden set · compose/README/demo | #20, #19, #21, #22 | ⚠ parcial |
+| Motor RAG | R2 · Generación con citas / agente | `query()` ≤2 llamadas LLM (`qwen3:4b-instruct`) + `web_search` | #17, #8 | ✅ hecho |
+| Generación | R3 · Recombinación DEM (**demo v0**) | `app/generation/` → `/policy-recombine` → **PDF borrador DEM** (bloques canónicos + perfil sin PII; sin emisión) | #36 | ✅ hecho |
+| Exposición | E1 · API y UI | FastAPI delgado + Chainlit con fuentes visibles | #16, #18 | ✅ hecho |
+| Garantías | G1 · QA, eval, ops | pytest con mocks · golden set · compose/README/demo | #20, #19, #21, #22 | ⚠ parcial (#21 hecho; #19, #20, #22 abiertos) |
 
-Hoy corren en Docker Compose local **Qdrant (6333) y Ollama (11434)**; la API y
-la UI se agregan en #21. Detalle del runtime en `docs/CONTRACTS.md` §4.
+Hoy corren en un **Docker Compose único** (Qdrant 6333 · Ollama 11434 · API 8000 ·
+UI 8001; #21). Detalle del runtime en `docs/CONTRACTS.md` §4.
 
 ---
 
