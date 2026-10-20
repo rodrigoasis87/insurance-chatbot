@@ -117,6 +117,52 @@ UI 8001; #21). Detalle del runtime en `docs/CONTRACTS.md` §4.
         └───────────────────────────────────┘
 ```
 
+## 2.1 Bloque G1 · Eval determinístico y RAGAS (offline, fuera del hot path)
+
+```text
+Artefactos del runtime (capturados por query(trace=...))
+  ├─ question (golden set)
+  ├─ answer (generada por query() in-process)
+  ├─ route (policy | web | abstain | web_failed)
+  ├─ policy_retrieved_contexts (tras hard gate UMBRAL_SCORE)
+  └─ sources[] / retrieval_hits
+                    │
+                    ▼
+                ┌─────────────┐
+                │      G1     │  corre con: uv run --group eval ...
+                │   (offline) │  fuera de Docker / fuera del hot path
+                └─────┬───────┘
+                      │
+              ┌───────┴─────────────────────────────────────────────────┐
+              ▼                                                         ▼
+    ┌─────────────────────────────────┐           ┌─────────────────────────────────────────┐
+    │      EVAL DETERMINÍSTICO        │           │           RAGAS (LLM-as-a-judge)         │
+    │      app/rag/eval.py           │           │           scripts/evaluate_ragas.py     │
+    │  (puro, sin red, sin ragas)     │           │           (lazy import ragas, grupo eval)│
+    └─────────────┬───────────────────┘           └─────────────────┬─────────────────────┘
+                  │                                                     │
+                  │  Aplica a TODOS los comportamientos:                │  SOLO filas answer_from_policy
+                  │  - expected_hit (retrieval vs reference_contexts)   │  Y SOLO con contextos tras hard gate
+                  │  - cita_ok / cita_ok_rate (valida citas inline)    │
+                  │  - expected_abstention_complied (abstain_*)         │  Juez: Ollama (qwen3:4b-instruct) o Google
+                  │  - web_routing_rate (answer_from_web)               │  (temperature 0) → parseado a 0-1
+                  │                                                     │  Métricas:
+                  └─────────────┬───────────────────────────────────────┤  - faithfulness
+                                │                                       │  - context_recall (+reference_answer)
+                                │                                       │  - context_precisionWithReference
+                                ▼                                       ▼
+                              ┌─────────────────────────────────────────────┐
+                              │                Agregados                     │
+                              │  data/evaluation/results/<run_id>/           │
+                              │    ├─ run.json      (reproducibilidad)       │
+                              │    ├─ results.jsonl (por pregunta)           │
+                              │    └─ summary.json  (agregados + ragas)      │
+                              │                │ --report-doc               │
+                              │                ▼                            │
+                              │              docs/eval/LATEST.md            │
+                              └─────────────────────────────────────────────┘
+```
+
 ---
 
 ## 3. Diagrama 2 · Arquitectura Post-MVP (con Intención + Recombinación completa)
