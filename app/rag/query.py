@@ -114,16 +114,30 @@ def es_del_dominio(question: str) -> bool:
     return any(kw in q for kw in DOMINIO_KEYWORDS)
 
 
+def _format_fragment(index: int, hit: SearchHit) -> str:
+    meta = hit["metadata"]
+    pagina = meta.get("pagina", "-")
+    return (
+        f"[{index}] {meta['poliza']} · Art. {meta['articulo']} · pág. {pagina}:\n"
+        f"{hit['page_content']}"
+    )
+
+
 def _build_fragments(hits: list[SearchHit]) -> str:
-    frags = []
-    for i, hit in enumerate(hits, start=1):
-        meta = hit["metadata"]
-        pagina = meta.get("pagina", "-")
-        frags.append(
-            f"[{i}] {meta['poliza']} · Art. {meta['articulo']} · pág. {pagina}:\n"
-            f"{hit['page_content']}"
-        )
-    return "\n\n".join(frags)
+    return "\n\n".join(
+        _format_fragment(index, hit) for index, hit in enumerate(hits, start=1)
+    )
+
+
+def _format_web_result(index: int, result: WebResult) -> str:
+    return f"[{index}] {result.title} ({result.url}):\n{result.body}"
+
+
+def _build_web_fragments(results: list[WebResult]) -> str:
+    return "\n\n".join(
+        _format_web_result(index, result)
+        for index, result in enumerate(results, start=1)
+    )
 
 
 def _sources_poliza(hits: list[SearchHit]) -> list[dict[str, Any]]:
@@ -163,12 +177,34 @@ def _intento_web(
     llm: BaseChatModel,
     web_fn: Callable[[str, int], list[WebResult]],
     question: str,
+    trace: dict[str, Any] | None = None,
+    progress: Callable[[str], None] | None = None,
 ) -> QueryResponse:
     """Búsqueda externa única (ADR-005). Falla degradada a sin-fuente-web."""
     try:
+        if progress:
+            progress("buscando fuentes web")
         results = web_fn(question)
     except WebSearchError:
+        if trace is not None:
+            trace.update({"route": "web_failed", "answer_contexts": []})
         return {"answer": NO_EN_WEB_DISPONIBLE, "sources": []}
+    if trace is not None:
+        web_contexts = [
+            _format_web_result(index, result)
+            for index, result in enumerate(results, start=1)
+        ]
+        trace.update(
+            {
+                "route": "web",
+                "web_retrieved_contexts": web_contexts,
+                # SYSTEM_2 recibe únicamente resultados web; la respuesta final
+                # ya no se genera con los fragmentos de la primera llamada.
+                "answer_contexts": web_contexts,
+            }
+        )
+    if progress:
+        progress("generando respuesta con fuentes web")
     return {
         "answer": _segunda_llamada_web(llm, question, results),
         "sources": _sources_web(results),
@@ -178,9 +214,7 @@ def _intento_web(
 def _segunda_llamada_web(
     llm: BaseChatModel, question: str, results: list[WebResult]
 ) -> str:
-    frags = "\n\n".join(
-        f"[{i}] {r.title} ({r.url}):\n{r.body}" for i, r in enumerate(results, start=1)
-    )
+    frags = _build_web_fragments(results)
     user = f"Pregunta: {question}\n\nResultados web:\n{frags}"
     msg = llm.invoke([SystemMessage(SYSTEM_2), HumanMessage(user)])
     return str(msg.content).strip()
@@ -194,6 +228,8 @@ def query(
     llm: BaseChatModel | None = None,
     search_fn: Callable[..., list[SearchHit]] | None = None,
     web_fn: Callable[[str, int], list[WebResult]] | None = None,
+    trace: dict[str, Any] | None = None,
+    progress: Callable[[str], None] | None = None,
 ) -> QueryResponse:
     """Responde una consulta con citas (≤2 llamadas LLM, ≤1 búsqueda web).
 
@@ -206,23 +242,55 @@ def query(
     web_fn = web_fn or _web_search
     llm = llm or get_llm()
 
-    hits = _pasa_gate(search_fn(question, top_k=top_k), get_settings().umbral_score)
+    if progress:
+        progress("recuperando documentos de Qdrant")
+    candidates = search_fn(question, top_k=top_k)
+    hits = _pasa_gate(candidates, get_settings().umbral_score)
+    if trace is not None:
+        policy_contexts = [
+            _format_fragment(index, hit) for index, hit in enumerate(hits, start=1)
+        ]
+        trace.clear()
+        trace.update(
+            {
+                "route": "policy",
+                "retrieval_candidates": [
+                    {"metadata": hit["metadata"], "score": hit["score"]}
+                    for hit in candidates
+                ],
+                "retrieval_hits": [
+                    {"metadata": hit["metadata"], "score": hit["score"]}
+                    for hit in hits
+                ],
+                "policy_retrieved_contexts": policy_contexts,
+                "web_retrieved_contexts": [],
+                "answer_contexts": policy_contexts,
+            }
+        )
+    if progress:
+        progress(f"recuperación lista: {len(hits)} fragmentos pasan el umbral")
     if not hits:
         # Sin contexto certero: con pregunta del rubro se delega a la web
         # (CONTRACTS §3 paso 4); si no, respuesta curada de alcance.
         if use_web and es_del_dominio(question):
-            return _intento_web(llm, web_fn, question)
+            return _intento_web(llm, web_fn, question, trace, progress)
+        if trace is not None:
+            trace.update({"route": "abstain", "answer_contexts": []})
         return {"answer": NO_EN_FUENTES, "sources": []}
 
+    if progress:
+        progress("generando respuesta con el modelo")
     respuesta, need_web = _primera_llamada(llm, question, hits)
     if not need_web:
         return {"answer": respuesta, "sources": _sources_poliza(hits)}
 
     # 1.ª llama pidió web: solo se consulta si corresponde al rubro (ADR-005).
     if not (use_web and es_del_dominio(question)):
+        if trace is not None:
+            trace.update({"route": "abstain", "answer_contexts": []})
         return {"answer": NO_EN_FUENTES, "sources": []}
 
-    web = _intento_web(llm, web_fn, question)
+    web = _intento_web(llm, web_fn, question, trace, progress)
     return {
         "answer": web["answer"],
         "sources": _sources_poliza(hits) + web["sources"],

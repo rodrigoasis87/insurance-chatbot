@@ -13,7 +13,12 @@ wheels/
 .env
 
 # Datos descargados (PDFs, etc.)
-/data/
+!/data/
+/data/*
+!/data/evaluation/
+/data/evaluation/*
+!/data/evaluation/*.jsonl
+/data/evaluation/results/
 
 # Config autogenerada de Chainlit (UI #18): solo se versiona config.toml
 .chainlit/translations/
