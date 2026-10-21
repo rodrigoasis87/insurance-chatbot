@@ -87,6 +87,46 @@ uv run python -m app.data.chunker          # articulos.jsonl → chunks.jsonl
 uv run python -m app.rag.indexer           # chunks.jsonl → Qdrant
 ```
 
+Para evaluar el RAG con el conjunto RAGAS (requiere Qdrant y Ollama activos;
+`uv` instala el grupo `eval` si hace falta):
+
+```bash
+# Corrida base recomendada: póliza + abstención, sin web (80 filas),
+# juez local, y genera docs/eval/LATEST.md
+uv run --group eval python scripts/evaluate_ragas.py \
+  --no-web --exclude-behavior answer_from_web \
+  --report-doc docs/eval/LATEST.md
+```
+
+La corrida base deja fuera los 20 casos `answer_from_web`; van en una corrida
+aparte (opcional, requiere red), y conviene un juez independiente:
+
+```bash
+# Casos web (20), juez Gemini (más independiente del generador)
+uv run --group eval python scripts/evaluate_ragas.py \
+  --behavior answer_from_web --judge google
+```
+
+Para un piloto rápido de una pregunta de póliza, sin búsqueda web:
+
+```bash
+uv run --group eval python scripts/evaluate_ragas.py \
+  --limit 1 --behavior answer_from_policy --no-web --metrics faithfulness
+```
+
+Para evaluar dos preguntas aleatorias de póliza; agrega `--seed 42` si quieres
+repetir exactamente la misma muestra:
+
+```bash
+uv run --group eval python scripts/evaluate_ragas.py \
+  --n=2 --behavior answer_from_policy --no-web --metrics faithfulness
+```
+
+Los resultados crudos se guardan en `data/evaluation/results/` (ignorados por
+Git) y el último resumen versionado en `docs/eval/LATEST.md`. El juez por
+defecto es `qwen3:4b-instruct` local; con `--judge google` se usa Gemini (ya
+configurado en `.env`).
+
 Los archivos generados quedan en `data/processed/` y están ignorados por Git:
 
 ```text
