@@ -7,18 +7,39 @@ generar nuevas.
 
 ## Stack
 
-Stack **100% local y gratuita** (ver `docs/STACK.md` — ADR-001):
+Stack **autoalojado (self-hosted)** y **gratis en el default**: la inferencia
+corre en infraestructura que administramos nosotros, **sin APIs de IA de
+terceros** (ver `docs/STACK.md` — ADR-001):
 
 - **Modelos:** Ollama (`qwen3:4b-instruct` generación · `qwen3-embedding:0.6b` embeddings)
-- **LLM de chat: intercambiable** (ADR-006): default Ollama local; cloud (`google` →
+- **LLM de chat: intercambiable** (ADR-006): default autoalojado (Ollama); cloud (`google` →
   `gemini-3.5-flash-lite`, API key) disponible como **opt-in de demo**. Embeddings
-  y corpus **siempre locales**; solo la modalidad cloud envía la consulta.
+  y corpus **siempre autoalojados**; solo la modalidad cloud envía la consulta.
 - **RAG + Agentes:** LangChain (+ LangGraph)
 - **Vector store:** Qdrant (Docker)
 - **Búsqueda web:** DuckDuckGo (sin API key)
 - **Backend / UI:** FastAPI · Chainlit
 - **Observabilidad:** Langfuse (opcional; tracing en runtime, noop si no se configura)
 - **Herramientas:** Python 3.12 (uv) · boto3 · PyMuPDF · Docker
+
+### Dónde corre (modos de despliegue)
+
+La **arquitectura es la misma** en los tres modos; lo que cambia es dónde se
+despliega el stack y quién opera la máquina.
+
+| Modo | El modelo corre en | La consulta sale de | Coste |
+|---|---|---|---|
+| **On-premise** | tu oficina / datacenter | nada | CAPEX + operación |
+| **Autoalojado en nube** (el de la demo: VPS con GPU) | una VPS dedicada que administramos | nuestra VPS | fijo (USD/hora) |
+| **API de terceros** | datacenter de OpenAI/Gemini/… | hacia el proveedor | por token |
+
+El claim que el stack sostiene en los dos primeros modos es *"la consulta **no
+llega a ningún proveedor de IA de terceros**"*. El corpus del MVP es público
+(Depósito CMF); con datos de clientes reales, la respuesta es **on-premise con
+la misma imagen Docker**.
+
+> Overlay de GPU para la VPS de demo: `docker compose -f docker-compose.yml
+> -f docker-compose.gpu.yml up -d` (ver `docker-compose.gpu.yml`).
 
 ## Estructura
 
@@ -288,4 +309,5 @@ solo). Detalle completo en `docs/OBSERVABILITY.md`.
 - [x] Demo ext: streaming SSE (`/chat/stream`) + LLM intercambiable con toggle en la UI (local ↔ cloud) — ADR-006
 - [x] Generación DEM (recombinación demo v0): CLI + `POST /policy-recombine` + PDF borrador — #36
 - [x] Observabilidad en runtime: tracing con Langfuse (opcional, noop por defecto) + overlay self-host — #48
-- [ ] QA/eval (golden set, demo day) — #19, #20, #22
+- [x] QA/eval: golden set de 100 preguntas + RAGAS + `cita_ok` propio; **piloto n=7 medido y re-scored** (`docs/eval/PILOTO.md`) — #19, #20
+- [ ] Corrida completa del golden set (n=100) con juez local + demo en vivo con video de respaldo — #19, #22
