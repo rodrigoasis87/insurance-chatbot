@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Literal
+from contextlib import asynccontextmanager
+from typing import Any, AsyncIterator, Literal
 
 import httpx
 from fastapi import FastAPI, HTTPException
@@ -20,6 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, create_model
 
 from app.generation.dem import PERFIL_SCHEMA
+from app.observability import get_tracer
 from app.paths import DATA_DIR
 from app.rag.config import SUPPORTED_LLM_PROVIDERS, get_settings
 from app.rag.llm import get_llm
@@ -29,7 +31,18 @@ from app.rag.vectordb import get_client
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="QuePlan API", version="0.3.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """Al apagar el API, envia los traces pendientes a Langfuse (#48)."""
+    yield
+    try:
+        get_tracer().flush()
+    except Exception:  # pragma: no cover - defensivo
+        logger.debug("No se pudo hacer flush de la observabilidad", exc_info=True)
+
+
+app = FastAPI(title="QuePlan API", version="0.3.0", lifespan=lifespan)
 
 # PDFs de borradores DEM generados en data/generated (§4.1) — el API los sirve
 # tal cual vienen del módulo de generación (app.generation.dem, #36).
@@ -44,6 +57,12 @@ class ChatRequest(BaseModel):
         default=None,
         description="LLM para esta consulta (demo): ollama|openai|anthropic|google. "
         "Default: LLM_PROVIDER del .env.",
+    )
+    session_id: str | None = Field(
+        default=None,
+        max_length=200,
+        description="Id de conversacion (opcional). Solo se usa para agrupar los "
+        "traces de la misma sesion en Langfuse; no cambia la respuesta.",
     )
 
 
@@ -137,7 +156,11 @@ def _año(poliza: str) -> str | None:
 def chat(body: ChatRequest) -> ChatResponse:
     provider = _validar_provider(body.provider)
     try:
-        resultado = rag_query(body.question, llm=get_llm(provider=provider))
+        resultado = rag_query(
+            body.question,
+            llm=get_llm(provider=provider),
+            **({"session_id": body.session_id} if body.session_id else {}),
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -168,7 +191,11 @@ def chat_stream(body: ChatRequest) -> StreamingResponse:
     async def gen():
         try:
             llm = get_llm(provider=provider)
-            async for ev in rag_query_stream(body.question, llm=llm):
+            async for ev in rag_query_stream(
+                body.question,
+                llm=llm,
+                **({"session_id": body.session_id} if body.session_id else {}),
+            ):
                 yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
         except ValueError as exc:
             yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"

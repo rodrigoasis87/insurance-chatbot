@@ -18,6 +18,7 @@ dependencies = [
     "langchain-openai>=1.6.7",
     "langchain-qdrant>=1.1.0",
     "langchain-text-splitters>=1.1.2",
+    "langfuse>=5.0.4",
     "langgraph>=1.2.12",
     "pandas>=3.0.6",
     "pymupdf>=1.28.2",

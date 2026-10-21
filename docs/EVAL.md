@@ -18,6 +18,24 @@ El eval responde, de forma reproducible, qué tan bien funciona el pipeline RAG
 usan un LLM como juez y son estimaciones; `cita_ok` valida existencia de la
 cita, no su pertinencia.
 
+## 1.1 Eval (offline) vs observabilidad (online)
+
+Son dos capas distintas de la misma garantía G1 y **no se mezclan**:
+
+| | Eval (este documento) | Observabilidad Langfuse (#48) |
+|---|---|---|
+| **Cuándo** | Offline, por lotes, sobre el golden set | En vivo, dentro de `query()` / `query_stream()` |
+| **Sobre qué** | 100 preguntas curadas | Cada consulta real del usuario |
+| **Qué produce** | Métricas agregadas (`recall@k`, `cita_ok_rate`, RAGAS…) | Un trace por consulta (spans, latencia, ruta, errores) |
+| **Dónde corre** | Fuera de Docker, sin red, en el pipeline de CI | En el hot path del API (fail-open) |
+| **Para qué** | ¿El sistema es bueno *en promedio*? | ¿Qué pasó *en esta* consulta? ¿Está degradándose? |
+| **Detalle** | este documento | `docs/OBSERVABILITY.md` |
+
+Comparten el vocabulario de **ruta** (`policy` · `web` · `abstain` ·
+`web_failed`): el eval la lee de `trace["route"]` y el tracer la escribe en
+`metadata.route` del span raíz, así una fila del golden set y un trace de
+producción se leen igual.
+
 ## 2. Mapa de componentes
 
 | Componente | Ruta | Rol |
@@ -32,6 +50,7 @@ cita, no su pertinencia.
 | Análisis de umbral | `scripts/analisis_umbral.py` | Distribución de scores de `search()` (44 queries, 3 clases) |
 | Tests | `tests/test_rag_eval.py` | 18 tests puros de la lógica de evaluación |
 | Dependencia | `pyproject.toml` → grupo `eval` | `ragas>=0.4.3` (se instala con `uv run --group eval`) |
+| Observabilidad | `app/observability/` + `docs/OBSERVABILITY.md` | Tracing en runtime con Langfuse (opcional, noop por defecto) |
 
 ## 3. Golden set
 
