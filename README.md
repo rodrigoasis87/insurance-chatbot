@@ -17,6 +17,7 @@ Stack **100% local y gratuita** (ver `docs/STACK.md` — ADR-001):
 - **Vector store:** Qdrant (Docker)
 - **Búsqueda web:** DuckDuckGo (sin API key)
 - **Backend / UI:** FastAPI · Chainlit
+- **Observabilidad:** Langfuse (opcional; tracing en runtime, noop si no se configura)
 - **Herramientas:** Python 3.12 (uv) · boto3 · PyMuPDF · Docker
 
 ## Estructura
@@ -25,6 +26,7 @@ Stack **100% local y gratuita** (ver `docs/STACK.md` — ADR-001):
 app/
 ├── data/        # descarga S3, parser, EDA y artefactos (PDFs → articulos.jsonl → chunks.jsonl)
 ├── rag/         # retrieval: embeddings, indexer Qdrant, vectordb (search + colapso), config, llm
+├── observability/  # tracing en runtime con Langfuse (opcional, noop por defecto) — #48
 ├── generation/  # Recombinación DEM demo v0 (#36)
 ├── api/         # FastAPI (#16)
 └── ui/          # interfaz de usuario (#18)
@@ -221,6 +223,48 @@ El PDF se sirve en `http://localhost:8000/generated/<codigo>.pdf` (el API monta
 `data/generated`). También corre como CLI: `uv run python -m app.generation.dem --help`.
 La demo lo muestra en el **paso 6** de `demo_recorrido`.
 
+### Demo: observabilidad con Langfuse (#48)
+
+Langfuse traza **cada consulta en vivo** (retrieval → hard gate → LLM → web →
+respuesta). Es **opcional**: sin configurarlo, el pipeline corre igual y no se
+toca nada del stack por defecto.
+
+Con Langfuse self-host (overlay: agrega web, worker, postgres, clickhouse,
+redis y minio):
+
+```bash
+# 1) Levantar el stack con Langfuse (la UI queda en http://localhost:3000)
+docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d
+
+# 2) Crear el primer usuario en http://localhost:3000 y generar las API keys
+#    (Settings → API Keys) → copiarlas al .env con LANGFUSE_ENABLED=true
+
+# 3) Reiniciar el API para que lea las keys
+docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d api
+
+# 4) Preguntar algo y ver el trace en la UI de Langfuse
+curl -X POST localhost:8000/chat -H 'Content-Type: application/json' \
+  -d '{"question":"¿Cuál es el plazo para denunciar un siniestro?"}'
+```
+
+También sirve **Langfuse Cloud**: creá un proyecto en `https://cloud.langfuse.com`,
+copiá las keys al `.env` con `LANGFUSE_BASE_URL=https://cloud.langfuse.com` y
+listo (sin Docker).
+
+Variables (`.env`, ver `.env.example`):
+
+```bash
+LANGFUSE_ENABLED=false        # false = noop, el pipeline corre igual
+LANGFUSE_PUBLIC_KEY=
+LANGFUSE_SECRET_KEY=
+LANGFUSE_BASE_URL=http://127.0.0.1:3000
+LANGFUSE_ENVIRONMENT=local
+```
+
+`POST /chat` y `POST /chat/stream` aceptan además un `session_id` **opcional**
+que agrupa los traces de una misma conversación (la UI de Chainlit lo manda
+solo). Detalle completo en `docs/OBSERVABILITY.md`.
+
 ## Documentación
 
 - `docs/ARCHITECTURE.md` — arquitectura del MVP y post-MVP, con ADRs y estado por célula.
@@ -228,6 +272,8 @@ La demo lo muestra en el **paso 6** de `demo_recorrido`.
 - `docs/ONTOLOGIA.md` — ontología del dominio (claves, PII, intenciones).
 - `docs/narrative.md` — narrativa, actores y roadmap.
 - `docs/umbral_score.md` — `UMBRAL_SCORE` empírico (ADR-004).
+- `docs/EVAL.md` — evaluación de calidad (golden set + RAGAS, offline).
+- `docs/OBSERVABILITY.md` — tracing en runtime con Langfuse (opcional, #48).
 - `docs/STACK.md` (ADR-001) y `docs/adr/` (ADR-002…006) — decisiones de arquitectura.
 
 ## Estado
@@ -241,4 +287,5 @@ La demo lo muestra en el **paso 6** de `demo_recorrido`.
 - [x] Ops demo: `docker compose` único (Qdrant + Ollama + API + UI) — #21
 - [x] Demo ext: streaming SSE (`/chat/stream`) + LLM intercambiable con toggle en la UI (local ↔ cloud) — ADR-006
 - [x] Generación DEM (recombinación demo v0): CLI + `POST /policy-recombine` + PDF borrador — #36
+- [x] Observabilidad en runtime: tracing con Langfuse (opcional, noop por defecto) + overlay self-host — #48
 - [ ] QA/eval (golden set, demo day) — #19, #20, #22

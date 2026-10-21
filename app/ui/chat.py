@@ -74,6 +74,9 @@ async def on_message(message: cl.Message) -> None:
         return
 
     provider = cl.user_session.get("provider", DEFAULT_PROVIDER)
+    # Id de sesion del navegador: agrupa los traces de la misma conversacion en
+    # Langfuse (opcional, el API lo ignora si Langfuse no esta configurado).
+    session_id = cl.user_session.get("id")
     msg = cl.Message(content="")
     texto: list[str] = []
     fuentes: list[dict] = []
@@ -85,7 +88,11 @@ async def on_message(message: cl.Message) -> None:
             async with http.stream(
                 "POST",
                 f"{API_URL}/chat/stream",
-                json={"question": pregunta, "provider": provider},
+                json={
+                    "question": pregunta,
+                    "provider": provider,
+                    "session_id": session_id,
+                },
             ) as resp:
                 if resp.status_code == 400:
                     cuerpo = await resp.aread()
