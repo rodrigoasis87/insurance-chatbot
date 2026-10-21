@@ -150,14 +150,33 @@ un **overlay** aparte que se levanta solo cuando se quiere:
 # 1) Levantar el stack completo (incluye Langfuse)
 docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d
 
-# 2) Crear el primer usuario en http://localhost:3000 (no hay login por defecto)
+# 2) Crear la instancia. Hay dos caminos:
 
-# 3) En la UI: Settings → API Keys → crear un proyecto y copiar
-#    LANGFUSE_PUBLIC_KEY (pk-lf-…) y LANGFUSE_SECRET_KEY (sk-lf-…)
+#    a) Bootstrap automático (recomendado): con estas variables el primer
+#       arranque crea org + proyecto + usuario + keys sin pasar por la UI.
+#       OJO: LANGFUSE_INIT_ORG_ID es OBLIGATORIO; sin él, Langfuse ignora
+#       el resto de las LANGFUSE_INIT_* (avisa en el log).
+export LANGFUSE_INIT_ORG_ID=$(cat /proc/sys/kernel/random/uuid)
+export LANGFUSE_INIT_ORG_NAME="Insurance"
+export LANGFUSE_INIT_PROJECT_ID=$(cat /proc/sys/kernel/random/uuid)
+export LANGFUSE_INIT_PROJECT_NAME="QuePlan"
+export LANGFUSE_INIT_USER_EMAIL="dev@example.com"
+export LANGFUSE_INIT_USER_NAME="dev"
+export LANGFUSE_INIT_USER_PASSWORD="DevLocal12345"
+export LANGFUSE_INIT_PROJECT_PUBLIC_KEY="pk-lf-…"
+export LANGFUSE_INIT_PROJECT_SECRET_KEY="sk-lf-…"
+docker compose -f docker-compose.yml -f docker-compose.observability.yml \
+  up -d --force-recreate langfuse-web
 
-# 4) Pegarlas en el .env con LANGFUSE_ENABLED=true y reiniciar el API
+#    b) Manual: abrir http://localhost:3000, crear el primer usuario y luego
+#       Settings → API Keys → nueva key (copiar pk-lf-… y sk-lf-…).
+
+# 3) Pegar las keys en el .env con LANGFUSE_ENABLED=true y reiniciar el API
 docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d api
 ```
+
+> **Dentro de Docker** el API debe usar `LANGFUSE_BASE_URL=http://langfuse-web:3000`
+> (hostname interno); **fuera**, `http://127.0.0.1:3000`.
 
 Para **apagarlo** y volver al stack liviano: `docker compose up -d` (sin el
 overlay). Los datos de Langfuse quedan en volúmenes (`langfuse_postgres_data`,
@@ -195,6 +214,12 @@ Preguntas que responde de un vistazo:
 - ¿La web falló? → `rag.web_search` en error y `route=web_failed`.
 - ¿Cuánto tardó cada paso? → tiempos en la UI (spans anidados).
 
+> **Nota de validación (v4)**: Langfuse v4 corre en modo **events-only**: los
+> endpoints clásicos de lectura (`GET /api/public/traces`, `/api/public/sessions`)
+> ya no existen. Para inspeccionar los traces por API se usa el SDK
+> (`client.api.observations.get_many(session_id=…, expand_metadata=True)`) o,
+> directamente, la tabla `events_full` de ClickHouse.
+
 ### 4.2 Sesiones
 
 `POST /chat` y `POST /chat/stream` aceptan un campo **opcional** `session_id`
@@ -210,7 +235,7 @@ cambia. `session_id` solo agrupa trazas; no afecta el pipeline.
 
 ## 5. Tests
 
-`tests/test_observability.py` (23 tests, sin red y sin Langfuse instalado):
+`tests/test_observability.py` (26 tests, sin red y sin Langfuse instalado):
 
 - **modo noop**: sin configuración el tracer es noop y `query()` devuelve
   exactamente lo mismo;
