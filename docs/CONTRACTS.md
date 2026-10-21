@@ -227,6 +227,10 @@ Reglas:
 - El LLM **solo cita** lo presente en el contexto invocado (chunks de la sección
   2 o resultados de `web_search`). Nunca inventa.
 - `sources` ordenadas: internas primero (score desc.), luego web. Sin duplicados.
+- `query()` y `query_stream()` aceptan además dos parámetros **opcionales** de
+  observabilidad (#48): `tracer` (inyectable; por defecto el global, que es
+  noop) y `session_id` (agrupa los traces de una conversación). Ninguno de los
+  dos cambia la respuesta ni el flujo → el contrato público no cambia.
 - `UMBRAL_SCORE` es hard gate: un chunk bajo umbral **jamás llega al prompt**
   (decisión de alcance). Con 0 chunks sobrevivientes → sin contexto.
 - El agente ejecuta a lo sumo **1 llamada a `web_search`** por consulta
@@ -277,6 +281,9 @@ Reglas:
   como fuentes, diferenciando visualmente las de `origen: "web"`.
 - `provider` es opcional en ambos endpoints: default `LLM_PROVIDER` del `.env`;
   por petición permite a la UI cambiar de LLM sin reiniciar (selector, ADR-006).
+- `session_id` es **opcional** en ambos endpoints (#48): solo agrupa los traces
+  de la misma conversación en Langfuse; **no** cambia la respuesta ni el flujo.
+  El body anterior sigue siendo válido.
 - `/chat/stream` mantiene el mismo flujo y límite de ≤2 generaciones LLM de `§3`;
   `token` es la respuesta (grounded en vivo), `sources` llega al final.
 - `GET /policies` puede derivar la lista de `data/raw_pdfs/` o de los índices;

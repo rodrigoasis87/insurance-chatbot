@@ -38,6 +38,14 @@ services:
       GOOGLE_CHAT_MODEL: ${GOOGLE_CHAT_MODEL:-gemini-3.5-flash-lite}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Observabilidad (Issue #48): Langfuse es OPCIONAL. Con LANGFUSE_ENABLED
+      # en false (o sin keys) el modulo app.observability queda en noop.
+      # El stack de Langfuse vive en docker-compose.observability.yml (overlay).
+      LANGFUSE_ENABLED: ${LANGFUSE_ENABLED:-false}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL:-http://127.0.0.1:3000}
+      LANGFUSE_ENVIRONMENT: ${LANGFUSE_ENVIRONMENT:-local}
     depends_on:
       - qdrant
       - ollama
