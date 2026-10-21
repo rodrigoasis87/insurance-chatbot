@@ -36,7 +36,19 @@ BEHAVIORS: tuple[str, ...] = (
 REQUIRED_FIELDS = ("id", "question", "reference_answer", "expected_behavior")
 
 # Cita interna: "[fuente: POL320200071 · Art. 13]" (separador U+00B7).
-_CITA_POLIZA = re.compile(r"\[fuente:\s*([A-Za-z0-9]+)\s*·\s*Art\.?\s*(\d+)\s*\]")
+# La pagina es OPCIONAL (CONTRACTS.md §3): el modelo puede emitir
+# "[fuente: POL320200071 · Art. 13 · pag. 50]" y la cita sigue siendo valida
+# (la pagina es mas trazabilidad, no menos). Antes el regex exigia el cierre
+# "]" justo tras el articulo, lo que producia falsos negativos.
+_CITA_POLIZA = re.compile(
+    r"\[fuente:\s*([A-Za-z0-9]+)\s*·\s*Art\.?\s*(\d+)"
+    r"(?:\s*·\s*p[aá]g\.?\s*\d+)?\s*\]"
+)
+# Cita interna en formato numerado: "[1] POL320200071 · Art. 13 · pag. 50: <texto>".
+_CITA_POLIZA_LISTA = re.compile(
+    r"\[\d+\]\s*([A-Za-z0-9]+)\s*·\s*Art\.?\s*(\d+)"
+    r"(?:\s*·\s*p[aá]g\.?\s*\d+)?"
+)
 # Cita web: "[fuente web: https://...]".
 _CITA_WEB = re.compile(r"\[fuente\s+web:\s*(\S+?)\s*\]", re.IGNORECASE)
 
@@ -135,9 +147,11 @@ def expected_hit(row: dict[str, Any], trace: dict[str, Any]) -> bool | None:
 def cita_ok(answer: str, sources: list[dict[str, Any]]) -> dict[str, Any]:
     """Valida que cada cita inline de ``answer`` exista en ``sources``.
 
-    Citas internas ``[fuente: POL… · Art. N]`` deben corresponder a una fuente
-    ``origen == "poliza"`` con el mismo ``poliza`` y ``articulo``; las web
-    ``[fuente web: <url>]`` a una fuente ``origen == "web"`` con la misma URL.
+    Citas internas ``[fuente: POL… · Art. N]`` (con pagina opcional) deben
+    corresponder a una fuente ``origen == "poliza"`` con el mismo ``poliza`` y
+    ``articulo``; las web ``[fuente web: <url>]`` a una fuente ``origen ==
+    "web"`` con la misma URL. Tambien se acepta el formato numerado
+    ``[1] POL… · Art. N`` que el modelo emite en las respuestas con lista.
 
     Returns:
         ``{"citadas", "validas", "ok", "rate", "detalle"}`` donde ``ok`` exige
@@ -157,6 +171,14 @@ def cita_ok(answer: str, sources: list[dict[str, Any]]) -> dict[str, Any]:
 
     detalle: list[dict[str, Any]] = []
     for poliza, articulo in _CITA_POLIZA.findall(answer):
+        detalle.append(
+            {
+                "tipo": "poliza",
+                "cita": f"{poliza} · Art. {articulo}",
+                "valida": (poliza, str(int(articulo))) in polizas,
+            }
+        )
+    for poliza, articulo in _CITA_POLIZA_LISTA.findall(answer):
         detalle.append(
             {
                 "tipo": "poliza",

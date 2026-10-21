@@ -180,3 +180,61 @@ def test_cita_ok_web_valid_and_invalid() -> None:
     assert valid["ok"] is True
     invalid = cita_ok("Dato [fuente web: https://otro.cl/b].", sources)
     assert invalid["ok"] is False
+
+
+def test_cita_ok_accepts_page_suffix() -> None:
+    result = cita_ok(
+        "Cobertura [fuente: POL1 · Art. 13 · pág. 50].",
+        [_policy_source(articulo=13)],
+    )
+    assert result["ok"] is True
+    assert result["citadas"] == 1
+    assert result["validas"] == 1
+
+
+def test_cita_ok_accepts_page_suffix_without_accent() -> None:
+    result = cita_ok(
+        "Cobertura [fuente: POL1 · Art. 13 · pag. 50].",
+        [_policy_source(articulo=13)],
+    )
+    assert result["ok"] is True
+    assert result["validas"] == 1
+
+
+def test_cita_ok_accepts_numbered_format() -> None:
+    result = cita_ok(
+        "1. Cobertura [1] POL1 · Art. 13 · pág. 50: el texto citado.",
+        [_policy_source(articulo=13)],
+    )
+    assert result["ok"] is True
+    assert result["citadas"] == 1
+    assert result["validas"] == 1
+
+
+def test_cita_ok_numbered_format_rejects_wrong_article() -> None:
+    result = cita_ok(
+        "1. Cobertura [1] POL1 · Art. 99 · pág. 50: el texto citado.",
+        [_policy_source(articulo=13)],
+    )
+    assert result["ok"] is False
+    assert result["citadas"] == 1
+    assert result["validas"] == 0
+
+
+def test_cita_ok_numbered_format_rejects_unknown_policy() -> None:
+    result = cita_ok(
+        "1. Cobertura [1] POL999 · Art. 13 · pág. 50: el texto citado.",
+        [_policy_source(articulo=13)],
+    )
+    assert result["ok"] is False
+    assert result["validas"] == 0
+
+
+def test_cita_ok_counts_page_and_numbered_together() -> None:
+    result = cita_ok(
+        "Ver [fuente: POL1 · Art. 13 · pág. 50] y [1] POL1 · Art. 9 · pág. 12: texto.",
+        [_policy_source(articulo=13), _policy_source(articulo=9)],
+    )
+    assert result["ok"] is True
+    assert result["citadas"] == 2
+    assert result["validas"] == 2
