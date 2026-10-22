@@ -3,6 +3,9 @@
 Correr local:      uv run chainlit run app/ui/chat.py
 Desde Docker:      API_URL=http://api:8000 (compone dentro de docker compose)
 
+Auth (#44): si ``API_KEY`` está definida (el ``.env`` lo carga Chainlit; en
+compose llega por ``environment``) cada request al API manda ``X-API-Key``.
+
 Consume el API HTTP (#16): POST /chat/stream (SSE) por defecto; la lógica RAG
 vive en ``app/rag/query.py`` y la expone el API (CONTRACTS §4). El selector
 lateral elige el LLM por petición (demo ambas modalidades, ADR-006): el valor
@@ -25,6 +28,22 @@ El selector **Modelo** (panel derecho) cambia el LLM en vivo: `ollama` (local)
 o `google` (Gemini por API key, demo)."""
 
 DEFAULT_PROVIDER = "ollama"
+
+API_KEY_HEADER = "X-API-Key"
+
+ERROR_401 = (
+    "Error: el API rechazó la API key (401). Revisá que `API_KEY` de la UI "
+    "coincida con la del API."
+)
+
+
+def _auth_headers() -> dict[str, str]:
+    """Header ``X-API-Key`` con la ``API_KEY`` del entorno (vacío = modo dev).
+
+    Se lee en cada request para tomar cambios de entorno sin reimportar el módulo.
+    """
+    api_key = os.getenv("API_KEY", "").strip()
+    return {API_KEY_HEADER: api_key} if api_key else {}
 
 
 def _render_fuentes(sources: list[dict]) -> str:
@@ -93,7 +112,11 @@ async def on_message(message: cl.Message) -> None:
                     "provider": provider,
                     "session_id": session_id,
                 },
+                headers=_auth_headers(),
             ) as resp:
+                if resp.status_code == 401:
+                    await cl.Message(content=ERROR_401).send()
+                    return
                 if resp.status_code == 400:
                     cuerpo = await resp.aread()
                     detalle = json.loads(cuerpo or b"{}").get(
