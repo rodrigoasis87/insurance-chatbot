@@ -276,8 +276,7 @@ solo). Detalle completo en `docs/OBSERVABILITY.md`.
 distinta el API responde **401**. Contrato completo en `docs/CONTRACTS.md` §4.
 
 ```bash
-# .env (generá una key cualquiera, p. ej.):
-#   API_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(32))")
+python -c "import secrets; print(secrets.token_urlsafe(32))"   # pegala en .env como API_KEY=...
 docker compose up -d api ui                     # el API y la UI leen la misma API_KEY
 
 export API_KEY=<la misma del .env>              # para los curl de este README
