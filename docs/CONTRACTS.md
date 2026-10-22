@@ -186,6 +186,17 @@ def search(query: str, top_k: int = 5) -> list[dict]:
   artículo quede afuera. Artículos de pólizas distintas **nunca** se colapsan,
   aunque compartan número: la cita (póliza + página) es distinta. Aplica
   `app/rag/vectordb.py::colapsar_por_articulo`.
+- **Modo de retrieval** (`RETRIEVAL_MODE`, #42): `dense` (default) o `hybrid`.
+  El shape y el colapso son los mismos en ambos; cambia qué significa `score`:
+  - `dense`: similitud **coseno** de Qdrant. Hard gate `UMBRAL_SCORE` (0.60).
+  - `hybrid`: ranking denso + ranking **BM25** (`app/rag/bm25.py`, índice en
+    memoria sobre `chunks.jsonl`) fusionados con **Reciprocal Rank Fusion**
+    (k=60, 20 candidatos por lista). `score` = RRF **normalizado a (0, 1]**
+    (`1.0` = primero en ambos rankings; `0.5` = primero en uno solo). Antes de
+    fusionar se aplica `UMBRAL_SCORE` como **piso semántico** (solo chunks con
+    coseno ≥ umbral son elegibles; los solo-léxicos se descartan) y `query()`
+    aplica `UMBRAL_SCORE_HYBRID` (0.40) sobre el score fusionado. Calibración y
+    A/B en `docs/umbral_score.md` §7–8.
 
 ---
 

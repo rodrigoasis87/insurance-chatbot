@@ -15,6 +15,7 @@ Stack **100% local y gratuita** (ver `docs/STACK.md` — ADR-001):
   y corpus **siempre locales**; solo la modalidad cloud envía la consulta.
 - **RAG + Agentes:** LangChain (+ LangGraph)
 - **Vector store:** Qdrant (Docker)
+- **Retrieval:** denso (default) o híbrido denso + BM25 (`rank-bm25`) fusionado con RRF (`RETRIEVAL_MODE`, #42)
 - **Búsqueda web:** DuckDuckGo (sin API key)
 - **Backend / UI:** FastAPI · Chainlit
 - **Observabilidad:** Langfuse (opcional; tracing en runtime, noop si no se configura)
@@ -25,7 +26,7 @@ Stack **100% local y gratuita** (ver `docs/STACK.md` — ADR-001):
 ```
 app/
 ├── data/        # descarga S3, parser, EDA y artefactos (PDFs → articulos.jsonl → chunks.jsonl)
-├── rag/         # retrieval: embeddings, indexer Qdrant, vectordb (search + colapso), config, llm
+├── rag/         # retrieval: embeddings, indexer Qdrant, vectordb (search + RRF + colapso), bm25, config, llm
 ├── observability/  # tracing en runtime con Langfuse (opcional, noop por defecto) — #48
 ├── generation/  # Recombinación DEM demo v0 (#36)
 ├── api/         # FastAPI (#16)
@@ -141,13 +142,37 @@ El retrieval filtra por un score mínimo configurable (env `UMBRAL_SCORE`, defau
 umbral y cómo re-medirlo al cambiar de embeddings/chunking: `docs/umbral_score.md`
 (ADR-004).
 
+### Búsqueda híbrida (BM25 + denso, #42)
+
+`RETRIEVAL_MODE` elige el retrieval sin tocar `query()` ni el contrato de
+`search()` (CONTRACTS §2):
+
+| `RETRIEVAL_MODE` | Qué hace | `score` | Hard gate |
+|---|---|---|---|
+| `dense` (default) | similitud coseno en Qdrant | coseno | `UMBRAL_SCORE=0.60` |
+| `hybrid` | ranking denso + ranking BM25 (índice en memoria sobre `data/processed/chunks.jsonl`) fusionados con Reciprocal Rank Fusion (k=60) | RRF normalizado a (0, 1] | `UMBRAL_SCORE` como piso semántico antes de fusionar + `UMBRAL_SCORE_HYBRID=0.40` sobre la fusión |
+
+El modo `hybrid` no requiere reindexar Qdrant: BM25 se construye al primer
+`search()` desde `chunks.jsonl` (si el archivo falta, `search()` falla con un
+error explícito). Con Docker, el API lee `RETRIEVAL_MODE` del `.env` y usa el
+`./data` montado. Para comparar ambos modos (A/B):
+
+```bash
+uv run python scripts/ab_retrieval.py                       # recall@k/MRR/abstención en el golden set, sin LLM
+uv run python scripts/analisis_umbral.py --mode hybrid      # distribución y barrido del gate fusionado
+RETRIEVAL_MODE=hybrid uv run --group eval python scripts/evaluate_ragas.py \
+  --no-web --exclude-behavior answer_from_web --metrics context_recall context_precision
+```
+
+Resultados del A/B y calibración de `UMBRAL_SCORE_HYBRID`: `docs/umbral_score.md` §7–8.
+
 Para validar el parser, el retrieval y ejecutar la suite de pruebas:
 
 ```bash
 uv run python scripts/test_parser.py      # parser: 227 artículos + familias
 uv run python scripts/test_vectordb.py    # smoke del index/retrieval contra Qdrant
 uv run pytest                             # suite con mocks (sin Docker)
-uv run python scripts/analisis_umbral.py  # re-mide scores → data/processed/umbral_raw.json
+uv run python scripts/analisis_umbral.py  # re-mide scores → data/processed/umbral_raw.json (--mode hybrid: umbral_raw_hybrid.json)
 ```
 
 También se pueden especificar rutas alternativas para los dos primeros pasos:
@@ -281,6 +306,7 @@ solo). Detalle completo en `docs/OBSERVABILITY.md`.
 - [x] Repo, stack técnico e infra Docker (Qdrant `v1.19.1` + Ollama) — ADR-001
 - [x] Datos: descarga S3, EDA, parser y artefactos (227 artículos · 758 chunks) — #4, #7
 - [x] Retrieval: indexado Qdrant + `search()` con colapso por `(poliza, articulo)` y `UMBRAL_SCORE` — #9 · ADR-002/003/004
+- [x] Búsqueda híbrida opcional: BM25 + denso con RRF (`RETRIEVAL_MODE=hybrid`), gate re-calibrado y A/B con el golden set — #42
 - [x] Agente RAG demo v0: `query()` con hard gate, citas y `web_search` (≤2 llamadas LLM) — #17, #8 · ADR-004/005
 - [x] API FastAPI delgado: `POST /chat` · `GET /health` · `GET /policies`, delega en `query()` — #16
 - [x] UI demo: Chainlit consumiendo el API por HTTP (no `query()` directo) — #18 · CONTRACTS §4
