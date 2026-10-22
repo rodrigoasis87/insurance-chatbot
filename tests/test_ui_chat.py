@@ -8,17 +8,18 @@ from __future__ import annotations
 
 import asyncio
 from types import SimpleNamespace
+from typing import ClassVar
 
 import httpx
 import pytest
 
-import app.ui.chat as chat
+from app.ui import chat
 
 
 class _MensajeFake:
     """Doble de ``cl.Message``: guarda lo enviado en ``enviados``."""
 
-    enviados: list[str] = []
+    enviados: ClassVar[list[str]] = []
 
     def __init__(self, content: str = "", author: str | None = None) -> None:
         self.content = content

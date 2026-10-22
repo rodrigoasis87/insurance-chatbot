@@ -73,8 +73,15 @@ def llamadas(monkeypatch: pytest.MonkeyPatch) -> list[str]:
             "molde_base": molde,
             "creado_en": "2026-10-22T00:00:00",
             "perfil": perfil,
-            "secciones": [{"nombre": "cobertura", "titulo": "COBERTURA",
-                           "pagina": 1, "perfil": "base", "texto": "x"}],
+            "secciones": [
+                {
+                    "nombre": "cobertura",
+                    "titulo": "COBERTURA",
+                    "pagina": 1,
+                    "perfil": "base",
+                    "texto": "x",
+                }
+            ],
             "pdf_url": "/generated/DEM20260001.pdf",
             "aviso": "BORRADOR",
         }
@@ -191,7 +198,9 @@ def test_policies_no_cambia_con_key_configurada(con_key, monkeypatch) -> None:
 
 
 @pytest.mark.parametrize(("path", "body"), PROTEGIDOS)
-def test_modo_dev_sin_key_no_exige_header(sin_key, llamadas, path: str, body: dict) -> None:
+def test_modo_dev_sin_key_no_exige_header(
+    sin_key, llamadas, path: str, body: dict
+) -> None:
     res = TestClient(app).post(path, json=body)
     assert res.status_code == 200
 
@@ -217,13 +226,14 @@ def test_con_key_no_avisa_modo_dev(con_key, caplog) -> None:
 
 def test_arranque_del_api_sin_key_loguea_advertencia(sin_key, caplog) -> None:
     """El lifespan del API emite la advertencia al levantar (``with TestClient``)."""
-    with caplog.at_level(logging.WARNING, logger="app.api.auth"):
-        with TestClient(app):
-            pass
+    with caplog.at_level(logging.WARNING, logger="app.api.auth"), TestClient(app):
+        pass
     assert auth.MODO_DEV_AVISO in caplog.text
 
 
-def test_la_key_nunca_aparece_en_logs_ni_en_la_respuesta(con_key, llamadas, caplog) -> None:
+def test_la_key_nunca_aparece_en_logs_ni_en_la_respuesta(
+    con_key, llamadas, caplog
+) -> None:
     with caplog.at_level(logging.DEBUG):
         res = TestClient(app).post("/chat", json={"question": "x"})
     assert KEY not in res.text
