@@ -3,10 +3,20 @@
 import json
 from types import SimpleNamespace
 
+import pytest
 from fastapi.testclient import TestClient
 
 import app.api.main as api_main
 from app.api.main import _año, app
+
+
+@pytest.fixture(autouse=True)
+def _sin_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Estos tests cubren el contrato en modo dev (sin auth, #44): no dependen
+    de una ``API_KEY`` que el desarrollador tenga en su ``.env``. La auth se
+    prueba en ``tests/test_api_auth.py``."""
+    monkeypatch.delenv("API_KEY", raising=False)
+
 
 RESPUESTA = {
     "answer": "El plazo es de 60 días [fuente: POL320200071 · Art. 11]",
