@@ -55,7 +55,7 @@ O manualmente, paso a paso:
 
 ```bash
 uv sync                       # instala dependencias y crea .venv
-cp .env.example .env          # completa tus credenciales AWS S3
+cp .env.example .env          # completa tus credenciales AWS S3 (y API_KEY, ver "Autenticación del API")
 docker compose up -d          # levanta Qdrant (6333), Ollama (11434), API (8000) y UI (8001)
 docker compose exec ollama ollama pull qwen3:4b-instruct      # LLM del RAG (#9)
 docker compose exec ollama ollama pull qwen3-embedding:0.6b   # embeddings del RAG (#9)
@@ -173,9 +173,10 @@ si la pregunta es del rubro y el corpus no alcanza, consulta una vez la web
 ```bash
 docker compose up -d --build            # todo arriba → UI en http://localhost:8001
 curl -X POST localhost:8000/chat -H 'Content-Type: application/json' \
+  -H "X-API-Key: $API_KEY" \
   -d '{"question":"¿Cuál es el plazo para denunciar un siniestro?"}'   # API directo
 uv run python -m scripts.demo_recorrido  # 5 preguntas + generación DEM (§4.1) (ver nota)
-uv run pytest tests/test_rag_query.py tests/test_api.py        # tests del agente y del API
+uv run pytest tests/test_rag_query.py tests/test_api.py tests/test_api_auth.py  # agente, API y auth
 ```
 
 > `demo_recorrido` usa `query()` directo para las 5 preguntas (sin Docker); el
@@ -213,6 +214,7 @@ edad, preexistencias, fonasa/isapre, etc.) → borrador **JSON + PDF** con marca
 
 ```bash
 curl -X POST localhost:8000/policy-recombine -H 'Content-Type: application/json' \
+  -H "X-API-Key: $API_KEY" \
   -d '{"molde":"POL320200071","perfil":{"edad":"30-40","preexistencias":"no",\
        "deportes_riesgo":"no","fonasa_isapre":"isapre","embarazo":"no",\
        "cronicas":"no","colectivo":"no","residencia":"chile"}}'
@@ -244,6 +246,7 @@ docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d a
 
 # 4) Preguntar algo y ver el trace en la UI de Langfuse
 curl -X POST localhost:8000/chat -H 'Content-Type: application/json' \
+  -H "X-API-Key: $API_KEY" \
   -d '{"question":"¿Cuál es el plazo para denunciar un siniestro?"}'
 ```
 
@@ -264,6 +267,37 @@ LANGFUSE_ENVIRONMENT=local
 `POST /chat` y `POST /chat/stream` aceptan además un `session_id` **opcional**
 que agrupa los traces de una misma conversación (la UI de Chainlit lo manda
 solo). Detalle completo en `docs/OBSERVABILITY.md`.
+
+### Autenticación del API (#44)
+
+`POST /chat`, `POST /chat/stream` y `POST /policy-recombine` exigen el header
+**`X-API-Key`** con el valor de `API_KEY` del `.env` (sin servicio de identidad).
+`GET /health` queda **público** (lo usa el smoke test). Sin header o con una key
+distinta el API responde **401**. Contrato completo en `docs/CONTRACTS.md` §4.
+
+```bash
+# .env (generá una key cualquiera, p. ej.):
+#   API_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(32))")
+docker compose up -d api ui                     # el API y la UI leen la misma API_KEY
+
+export API_KEY=<la misma del .env>              # para los curl de este README
+curl -s -o /dev/null -w '%{http_code}\n' -X POST localhost:8000/chat \
+  -H 'Content-Type: application/json' -d '{"question":"¿plazo?"}'   # → 401
+curl -X POST localhost:8000/chat -H 'Content-Type: application/json' \
+  -H "X-API-Key: $API_KEY" -d '{"question":"¿plazo?"}'             # → 200
+curl localhost:8000/health                                           # → 200, sin key
+```
+
+- La **UI** (Chainlit) y `scripts/demo_recorrido.py` mandan la key solos si
+  `API_KEY` está definida. En Swagger (`/docs`) usá el botón **Authorize**.
+- **Modo dev**: con `API_KEY` vacío no hay auth y el API lo avisa con un warning
+  en los logs al arrancar (`docker compose logs api`).
+
+Variable (`.env`, ver `.env.example`):
+
+```bash
+API_KEY=                      # vacío = modo dev sin auth (warning en logs)
+```
 
 ## Documentación
 
@@ -288,4 +322,5 @@ solo). Detalle completo en `docs/OBSERVABILITY.md`.
 - [x] Demo ext: streaming SSE (`/chat/stream`) + LLM intercambiable con toggle en la UI (local ↔ cloud) — ADR-006
 - [x] Generación DEM (recombinación demo v0): CLI + `POST /policy-recombine` + PDF borrador — #36
 - [x] Observabilidad en runtime: tracing con Langfuse (opcional, noop por defecto) + overlay self-host — #48
+- [x] Auth mínima del API: header `X-API-Key` en `/chat`, `/chat/stream` y `/policy-recombine`; `/health` público — #44
 - [ ] QA/eval (golden set, demo day) — #19, #20, #22

@@ -256,6 +256,12 @@ Reglas:
 ## 4. Contrato API → UI (#16 → #18)
 
 ```json
+// Auth (#44): POST /chat, /chat/stream y /policy-recombine exigen el header
+//   X-API-Key: <API_KEY del .env>
+// sin header o con key distinta → 401 {"detail": "API key inválida o ausente (header X-API-Key)"}
+//                                  + header WWW-Authenticate: APIKey
+// GET /health y GET /policies no piden key.
+
 POST /chat     {"question": "¿…?", "provider": "ollama|google"}   // provider opcional (demo, ADR-006)
   → {"answer": "…",
      "sources": [{"origen": "poliza", "poliza": "POL320130223", "articulo": 2, "pagina": 1},
@@ -275,6 +281,16 @@ GET  /policies → [{"poliza": "POL320130223", "ramo": "salud", "año": "2013"}]
 
 Reglas:
 
+- **Autenticación (#44)**: API key estática en el header `X-API-Key`, comparada
+  en tiempo constante contra `API_KEY` del `.env` (sin servicio de identidad).
+  Aplica a `POST /chat`, `POST /chat/stream` y `POST /policy-recombine` (§4.1);
+  `GET /health` queda **público** porque lo usan el smoke test y los healthchecks.
+  `GET /policies` y los PDFs de `/generated` quedan como estaban (fuera del
+  alcance de #44). El 401 se resuelve **antes** de validar el body (un body
+  inválido sin key es 401, no 422). Con `API_KEY` vacío el API corre en
+  **modo dev sin auth** y lo avisa con un warning en los logs al arrancar.
+  Clientes: la UI (`#18`) y `scripts/demo_recorrido.py` mandan la key si
+  `API_KEY` está definida; Swagger (`/docs`) la pide con el botón *Authorize*.
 - `#16` es **HTTP delgado**: no tiene lógica RAG propia; delega en `query()`
   / `query_stream()` de `#17`.
 - `#18` consume **`#16`** (no `#17` directo); muestra `poliza`/`articulo`/`pagina`
@@ -299,7 +315,7 @@ Corre hoy como **CLI** (`uv run python -m app.generation.dem`); el endpoint se
 cablea en `#16` con este contrato.
 
 ```json
-POST /policy-recombine
+POST /policy-recombine            // requiere X-API-Key (§4, #44)
   {"molde": "POL320200071",
    "perfil": {"edad": "30-40", "preexistencias": "no", "deportes_riesgo": "no",
               "fonasa_isapre": "isapre", "embarazo": "no", "cronicas": "no",
