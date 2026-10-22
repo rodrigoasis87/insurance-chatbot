@@ -43,6 +43,15 @@ DEFAULT_QDRANT_COLLECTION = "polizas"
 # docs/umbral_score.md (se re-mide si cambia el modelo de embeddings).
 DEFAULT_UMBRAL_SCORE = 0.60
 
+# Modo de retrieval (#42): "dense" = solo embeddings en Qdrant (comportamiento
+# historico); "hybrid" = denso + BM25 fusionados con RRF. El score de cada modo
+# vive en otra escala (coseno vs. RRF normalizado), por eso cada uno tiene su
+# propio hard gate: UMBRAL_SCORE (denso) y UMBRAL_SCORE_HYBRID (hibrido),
+# calibrados en docs/umbral_score.md.
+SUPPORTED_RETRIEVAL_MODES = ("dense", "hybrid")
+DEFAULT_RETRIEVAL_MODE = "dense"
+DEFAULT_UMBRAL_SCORE_HYBRID = 0.40
+
 # Observabilidad en runtime (Langfuse, #48). Es OPCIONAL: sin estas variables
 # el modulo app.observability queda en modo noop (no toca la red).
 # LANGFUSE_BASE_URL apunta al Langfuse self-host de docker-compose.observability.yml.
@@ -81,6 +90,9 @@ class Settings:
     qdrant_url: str
     qdrant_collection: str
     umbral_score: float
+    retrieval_mode: str
+    umbral_score_dense: float
+    umbral_score_hybrid: float
     langfuse_enabled: bool
     langfuse_public_key: str
     langfuse_secret_key: str
@@ -89,7 +101,17 @@ class Settings:
 
 
 def get_settings() -> Settings:
-    """Construye ``Settings`` a partir de las variables de entorno actuales."""
+    """Construye ``Settings`` a partir de las variables de entorno actuales.
+
+    ``umbral_score`` es el hard gate del modo activo (``RETRIEVAL_MODE``):
+    ``UMBRAL_SCORE`` en modo ``dense`` y ``UMBRAL_SCORE_HYBRID`` en ``hybrid``.
+    Un modo desconocido se conserva tal cual y lo rechaza ``search()``.
+    """
+    retrieval_mode = _env("RETRIEVAL_MODE", DEFAULT_RETRIEVAL_MODE).lower()
+    umbral_dense = float(_env("UMBRAL_SCORE", str(DEFAULT_UMBRAL_SCORE)))
+    umbral_hybrid = float(
+        _env("UMBRAL_SCORE_HYBRID", str(DEFAULT_UMBRAL_SCORE_HYBRID))
+    )
     return Settings(
         llm_provider=_env("LLM_PROVIDER", DEFAULT_LLM_PROVIDER).lower(),
         ollama_base_url=_env("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL),
@@ -103,7 +125,10 @@ def get_settings() -> Settings:
         embedding_model=_env("EMBEDDING_MODEL", DEFAULT_EMBEDDING_MODEL),
         qdrant_url=_env("QDRANT_URL", DEFAULT_QDRANT_URL),
         qdrant_collection=_env("QDRANT_COLLECTION", DEFAULT_QDRANT_COLLECTION),
-        umbral_score=float(_env("UMBRAL_SCORE", str(DEFAULT_UMBRAL_SCORE))),
+        umbral_score=umbral_hybrid if retrieval_mode == "hybrid" else umbral_dense,
+        retrieval_mode=retrieval_mode,
+        umbral_score_dense=umbral_dense,
+        umbral_score_hybrid=umbral_hybrid,
         langfuse_enabled=_env_bool("LANGFUSE_ENABLED"),
         langfuse_public_key=_env("LANGFUSE_PUBLIC_KEY", ""),
         langfuse_secret_key=_env("LANGFUSE_SECRET_KEY", ""),
