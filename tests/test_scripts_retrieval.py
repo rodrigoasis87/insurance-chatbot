@@ -187,3 +187,27 @@ def test_reporte_ragas_incluye_el_modo_de_retrieval() -> None:
     # Corridas viejas (sin la clave) se leen como densas.
     del meta["retrieval_mode"]
     assert "- Retrieval: `dense`" in _render_report(summary)
+
+
+# --- scripts/test_vectordb.py: el smoke del denso no depende de RETRIEVAL_MODE ---
+
+
+def test_smoke_vectordb_fija_el_modo_denso(monkeypatch: pytest.MonkeyPatch) -> None:
+    from scripts import test_vectordb as smoke
+
+    monkeypatch.setenv("RETRIEVAL_MODE", "hybrid")
+    by_canonico = {c["metadata"]["titulo_canonico"]: c for c in smoke.MOCK_CHUNKS}
+    modes: list[str | None] = []
+
+    def fake_search(query: str, top_k: int, *, store, mode=None) -> list[dict]:
+        modes.append(mode)
+        expected = dict(smoke.QUERIES)[query]
+        top = by_canonico[expected]
+        return [
+            {"page_content": top["page_content"], "metadata": top["metadata"], "score": 0.9},
+            {"page_content": "otro", "metadata": {}, "score": 0.1},
+        ]
+
+    monkeypatch.setattr(smoke, "search", fake_search)
+    assert smoke.check_search(store=None, min_score=0.3) == []
+    assert modes == ["dense"] * len(smoke.QUERIES)
