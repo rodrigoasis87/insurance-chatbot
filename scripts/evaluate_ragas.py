@@ -166,6 +166,7 @@ def _run_metadata(ragas_version: str) -> dict[str, Any]:
         "qdrant_points_count": collection.points_count,
         "qdrant_status": str(collection.status),
         "corpus_sha256": corpus_hash,
+        "retrieval_mode": settings.retrieval_mode,
         "score_threshold": settings.umbral_score,
         "top_k": 5,
     }
@@ -449,7 +450,10 @@ def _render_report(summary: dict[str, Any]) -> str:
         f"- Generador: `{meta['generator_provider']}` · `{meta['generator_model']}`",
         f"- Juez RAGAS: `{meta['judge_provider']}` · `{meta['judge_model']}`",
         f"- Embeddings: `{meta['embedding_model']}`",
-        f"- Umbral (hard gate): `{meta['score_threshold']}` · top_k `{meta['top_k']}`",
+        (
+            f"- Retrieval: `{meta.get('retrieval_mode', 'dense')}` · umbral (hard gate): "
+            f"`{meta['score_threshold']}` · top_k `{meta['top_k']}`"
+        ),
         f"- Colección Qdrant: `{meta['qdrant_collection']}` "
         f"({meta['qdrant_points_count']} puntos, {meta['qdrant_status']})",
         f"- Corpus sha256: `{meta['corpus_sha256']}`",
