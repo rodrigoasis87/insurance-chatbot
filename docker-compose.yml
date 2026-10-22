@@ -30,6 +30,10 @@ services:
     environment:
       QDRANT_URL: http://qdrant:6333
       OLLAMA_BASE_URL: http://ollama:11434
+      # Retrieval (#42): dense | hybrid. El indice BM25 del modo hybrid se arma
+      # desde data/processed/chunks.jsonl (montado arriba con ./data).
+      RETRIEVAL_MODE: ${RETRIEVAL_MODE:-dense}
+      UMBRAL_SCORE_HYBRID: ${UMBRAL_SCORE_HYBRID:-0.40}
       # LLM (ADR-006): compose interpola el .env local en el contenedor sin
       # exponer las credenciales AWS. Default local = Ollama (ADR-001).
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
