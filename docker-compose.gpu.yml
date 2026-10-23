@@ -1,0 +1,25 @@
+# GPU · Ollama (Issue #52) — compose OVERLAY opcional.
+#
+# El stack principal (docker-compose.yml) NO se toca: sin GPU sigue siendo
+# valido en cualquier maquina (laptop sin NVIDIA, CI, etc.). Este overlay solo
+# agrega la reserva de GPU al servicio `ollama`, que es el unico que la usa
+# (el LLM y el embedder corren ahi; el API solo llama a Ollama por HTTP).
+#
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+#
+# Requisito en el HOST: driver NVIDIA + nvidia-container-toolkit. Si el host no
+# tiene GPU, NO uses este overlay: `gpus: all` falla el arranque del compose.
+#
+# Verificacion desde el contenedor (debe listar la GPU):
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml exec ollama nvidia-smi
+
+services:
+  ollama:
+    gpus: all
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      # Ollama detecta la GPU por CUDA y la usa para el LLM y para los
+      # embeddings; keep_alive evita que descargue el modelo a CPU entre
+      # consultas cortas (default 5m, que es lo que usa la demo).
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-30m}

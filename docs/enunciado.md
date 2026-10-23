@@ -19,7 +19,7 @@ sobre los que se diseñó el prototipo (respaldan decisiones en
 - Incluye **búsqueda web** y **resumen** de información.
 - Un **interfaz de usuario** (web y/o móvil) para interactuar con el asistente.
 - Sugerencias del enunciado: ChatGPT/OpenAI, Pinecone, Haystack, LangChain.
-  (Ver `docs/STACK.md` ADR-001: se eligió un stack **100% local y gratuito**
+  (Ver `docs/STACK.md` ADR-001: se eligió un stack **autoalojado y gratuito en el default**
   que cumple los entregables obligatorios — LangChain Agents/Tools, API, UI,
   Docker — divergiendo deliberadamente de los servicios de pago.)
 
