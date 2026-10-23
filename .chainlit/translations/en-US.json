@@ -129,8 +129,8 @@
             "show": "Show history"
         },
         "settings": {
-            "title": "Recombination panel",
-            "customize": "Set the mold and profile to generate the DEM draft"
+            "title": "Settings",
+            "customize": "Pick the model and set the mold and profile for the DEM draft"
         },
         "watermark": "LLMs can make mistakes. Check important info."
     },
