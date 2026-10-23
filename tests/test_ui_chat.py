@@ -7,6 +7,8 @@ HTTP va contra un ``httpx.MockTransport`` que registra los headers recibidos.
 from __future__ import annotations
 
 import asyncio
+import json
+from pathlib import Path
 from types import SimpleNamespace
 from typing import ClassVar
 
@@ -108,3 +110,85 @@ def test_on_message_401_muestra_error_claro(ui, monkeypatch) -> None:
     ui.estado["status"] = 401
     _preguntar()
     assert _MensajeFake.enviados == [chat.ERROR_401]
+
+
+# --- Login de la UI (password_auth_callback de Chainlit) ---------------------
+
+
+@pytest.fixture
+def credenciales_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("UI_USERNAME", raising=False)
+    monkeypatch.delenv("UI_PASSWORD", raising=False)
+
+
+def _login(usuario: str, password: str):
+    return asyncio.run(chat.auth_callback(usuario, password))
+
+
+def test_login_admin_admin_por_default(credenciales_default) -> None:
+    user = _login("admin", "admin")
+    assert user is not None
+    assert user.identifier == "admin"
+    assert user.metadata == {"role": "admin"}
+
+
+@pytest.mark.parametrize(
+    ("usuario", "password"),
+    [
+        ("admin", "otra"),
+        ("otro", "admin"),
+        ("admin", "ADMIN"),
+        ("Admin", "admin"),
+        ("admin", ""),
+        ("", ""),
+        ("admin", " admin"),
+    ],
+)
+def test_login_rechaza_credenciales_invalidas(
+    credenciales_default, usuario: str, password: str
+) -> None:
+    assert _login(usuario, password) is None
+
+
+def test_login_ignora_espacios_en_el_usuario(credenciales_default) -> None:
+    user = _login("  admin ", "admin")
+    assert user is not None
+    assert user.identifier == "admin"
+
+
+def test_login_toma_credenciales_del_entorno(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("UI_USERNAME", "ops")
+    monkeypatch.setenv("UI_PASSWORD", "s3cret")
+    user = _login("ops", "s3cret")
+    assert user is not None
+    assert user.identifier == "ops"
+    assert _login("admin", "admin") is None
+
+
+def test_login_entorno_en_blanco_cae_al_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("UI_USERNAME", "  ")
+    monkeypatch.setenv("UI_PASSWORD", "")
+    assert _login("admin", "admin") is not None
+
+
+def test_login_registrado_en_chainlit() -> None:
+    from chainlit.auth import require_login
+    from chainlit.config import config
+
+    assert config.code.password_auth_callback is not None
+    assert require_login()
+
+
+@pytest.mark.parametrize(
+    ("archivo", "etiqueta"), [("es.json", "Usuario"), ("en-US.json", "Username")]
+)
+def test_login_pide_usuario_y_no_correo(archivo: str, etiqueta: str) -> None:
+    """El login valida usuario (no email): la etiqueta no debe decir correo."""
+    ruta = Path(__file__).parents[1] / ".chainlit" / "translations" / archivo
+    campo = json.loads(ruta.read_text(encoding="utf-8"))["auth"]["login"]["form"][
+        "email"
+    ]
+    assert campo["label"] == etiqueta
+    assert "@" not in campo["placeholder"]

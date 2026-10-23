@@ -298,6 +298,24 @@ Variable (`.env`, ver `.env.example`):
 API_KEY=                      # vacío = modo dev sin auth (warning en logs)
 ```
 
+### Login de la UI
+
+La UI (http://localhost:8001) abre con una pantalla de login de Chainlit.
+Credenciales de la demo: **`admin` / `admin`** (se cambian con `UI_USERNAME` y
+`UI_PASSWORD`). Chainlit firma la sesión con `CHAINLIT_AUTH_SECRET` y **no
+arranca sin ella**:
+
+```bash
+uv run chainlit create-secret        # pegá CHAINLIT_AUTH_SECRET=... en .env
+docker compose up -d --build ui
+```
+
+```bash
+CHAINLIT_AUTH_SECRET=         # obligatoria; cambiarla cierra las sesiones abiertas
+UI_USERNAME=admin             # vacío = admin
+UI_PASSWORD=admin             # vacío = admin
+```
+
 ## Documentación
 
 - `docs/ARCHITECTURE.md` — arquitectura del MVP y post-MVP, con ADRs y estado por célula.

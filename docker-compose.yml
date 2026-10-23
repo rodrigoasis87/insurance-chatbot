@@ -64,6 +64,11 @@ services:
       API_URL: http://api:8000
       # La UI manda la misma key al API en el header X-API-Key (#44).
       API_KEY: ${API_KEY:-}
+      # Login de la UI: Chainlit no arranca sin CHAINLIT_AUTH_SECRET (firma la
+      # sesion). Usuario/contraseña vacios = admin/admin (default en app/ui/chat.py).
+      CHAINLIT_AUTH_SECRET: ${CHAINLIT_AUTH_SECRET:-}
+      UI_USERNAME: ${UI_USERNAME:-}
+      UI_PASSWORD: ${UI_PASSWORD:-}
     depends_on:
       - api
     restart: unless-stopped

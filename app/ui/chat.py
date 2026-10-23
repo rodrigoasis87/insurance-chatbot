@@ -6,12 +6,18 @@ Desde Docker:      API_URL=http://api:8000 (compone dentro de docker compose)
 Auth (#44): si ``API_KEY`` está definida (el ``.env`` lo carga Chainlit; en
 compose llega por ``environment``) cada request al API manda ``X-API-Key``.
 
+Login: la UI pide usuario y contraseña con la pantalla de login de Chainlit
+(``password_auth_callback``). Credenciales por ``UI_USERNAME``/``UI_PASSWORD``
+(default ``admin``/``admin``, demo); Chainlit exige ``CHAINLIT_AUTH_SECRET``
+para firmar la sesión (``uv run chainlit create-secret``).
+
 Consume el API HTTP (#16): POST /chat/stream (SSE) por defecto; la lógica RAG
 vive en ``app/rag/query.py`` y la expone el API (CONTRACTS §4). El selector
 lateral elige el LLM por petición (demo ambas modalidades, ADR-006): el valor
 viaja en el body (``provider``) sin reiniciar nada.
 """
 
+import hmac
 import json
 import os
 
@@ -35,6 +41,39 @@ ERROR_401 = (
     "Error: el API rechazó la API key (401). Revisá que `API_KEY` de la UI "
     "coincida con la del API."
 )
+
+
+DEFAULT_UI_USERNAME = "admin"
+DEFAULT_UI_PASSWORD = "admin"
+
+
+def _ui_credentials() -> tuple[str, str]:
+    """Usuario y contraseña del login (``UI_USERNAME``/``UI_PASSWORD``).
+
+    Vacío o ausente cae al default de la demo. Se lee en cada login para tomar
+    cambios de entorno sin reimportar el módulo.
+    """
+    usuario = os.getenv("UI_USERNAME", "").strip() or DEFAULT_UI_USERNAME
+    password = os.getenv("UI_PASSWORD", "") or DEFAULT_UI_PASSWORD
+    return usuario, password
+
+
+def _coincide(recibido: str, esperado: str) -> bool:
+    """Comparación en tiempo constante (no filtra el largo del prefijo correcto)."""
+    return hmac.compare_digest(recibido.encode(), esperado.encode())
+
+
+@cl.password_auth_callback
+async def auth_callback(username: str, password: str) -> cl.User | None:
+    """Valida el login; ``None`` hace que Chainlit muestre credenciales inválidas."""
+    usuario, esperado = _ui_credentials()
+    # Se evalúan ambas comparaciones siempre (sin cortocircuito) para no revelar
+    # por tiempo si el usuario existe.
+    usuario_ok = _coincide(username.strip(), usuario)
+    password_ok = _coincide(password, esperado)
+    if usuario_ok and password_ok:
+        return cl.User(identifier=usuario, metadata={"role": "admin"})
+    return None
 
 
 def _auth_headers() -> dict[str, str]:
