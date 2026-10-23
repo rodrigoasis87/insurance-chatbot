@@ -186,6 +186,17 @@ def search(query: str, top_k: int = 5) -> list[dict]:
   artículo quede afuera. Artículos de pólizas distintas **nunca** se colapsan,
   aunque compartan número: la cita (póliza + página) es distinta. Aplica
   `app/rag/vectordb.py::colapsar_por_articulo`.
+- **Modo de retrieval** (`RETRIEVAL_MODE`, #42): `dense` (default) o `hybrid`.
+  El shape y el colapso son los mismos en ambos; cambia qué significa `score`:
+  - `dense`: similitud **coseno** de Qdrant. Hard gate `UMBRAL_SCORE` (0.60).
+  - `hybrid`: ranking denso + ranking **BM25** (`app/rag/bm25.py`, índice en
+    memoria sobre `chunks.jsonl`) fusionados con **Reciprocal Rank Fusion**
+    (k=60, 20 candidatos por lista). `score` = RRF **normalizado a (0, 1]**
+    (`1.0` = primero en ambos rankings; `0.5` = primero en uno solo). Antes de
+    fusionar se aplica `UMBRAL_SCORE` como **piso semántico** (solo chunks con
+    coseno ≥ umbral son elegibles; los solo-léxicos se descartan) y `query()`
+    aplica `UMBRAL_SCORE_HYBRID` (0.40) sobre el score fusionado. Calibración y
+    A/B en `docs/umbral_score.md` §7–8.
 
 ---
 
@@ -224,6 +235,12 @@ Reglas:
 
 - Citas inline: interna `[fuente: POL320130223 · Art. 2]` coherente con
   `sources`; externa `[fuente web: <dominio>]` con su URL en `sources`.
+- **La página es opcional en la cita inline.** El modelo puede emitir
+  `[fuente: POL320130223 · Art. 2]`, `[fuente: POL320130223 · Art. 2 · pág. 14]`
+  o, en formato numerado, `[1] POL320130223 · Art. 2 · pág. 14: <texto>`. Las
+  tres son la **misma cita**: la página aporta trazabilidad, no cambia la
+  identidad de la fuente, y su presencia no vuelve inválida la cita. La
+  validación contra `sources` se hace siempre por `(poliza, articulo)`.
 - El LLM **solo cita** lo presente en el contexto invocado (chunks de la sección
   2 o resultados de `web_search`). Nunca inventa.
 - `sources` ordenadas: internas primero (score desc.), luego web. Sin duplicados.

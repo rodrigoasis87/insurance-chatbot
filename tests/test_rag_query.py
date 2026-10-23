@@ -158,3 +158,22 @@ def test_cero_hits_fuera_de_dominio_devuelve_alcance_sin_web() -> None:
     assert res["answer"] == qmodule.NO_EN_FUENTES
     assert res["sources"] == []
     assert llm.i == 0
+
+def test_gate_en_modo_hibrido_usa_umbral_score_hybrid(monkeypatch) -> None:
+    # #42: en hibrido el score es RRF normalizado (otra escala que el coseno).
+    # Un hit fusionado de 0.5 (1.º en un solo ranking) pasa UMBRAL_SCORE_HYBRID
+    # (0.40) aunque quede debajo del UMBRAL_SCORE denso (0.60).
+    monkeypatch.setenv("RETRIEVAL_MODE", "hybrid")
+    monkeypatch.delenv("UMBRAL_SCORE", raising=False)
+    hits = [_hit(articulo=2, score=0.5), _hit(articulo=9, score=0.3)]
+    res, llm = _query("¿denuncia?", hits)
+    assert [s["articulo"] for s in res["sources"]] == [2]
+    assert llm.i == 1
+
+
+def test_gate_en_modo_denso_no_cambia(monkeypatch) -> None:
+    monkeypatch.setenv("RETRIEVAL_MODE", "dense")
+    monkeypatch.delenv("UMBRAL_SCORE", raising=False)
+    res, llm = _query("¿denuncia?", [_hit(articulo=2, score=0.5)])
+    assert res["answer"] == qmodule.NO_EN_FUENTES
+    assert llm.i == 0

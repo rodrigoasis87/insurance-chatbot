@@ -175,7 +175,10 @@ def check_search(store: QdrantVectorStore, min_score: float) -> list[str]:
 
     print(f"\n     {'consulta':<62} {'esperado':<22} {'top-1':<22} top-1  top-2")
     for query, expected in QUERIES:
-        results = search(query, top_k=len(MOCK_CHUNKS), store=store)
+        # Valida la coleccion densa y scores coseno (min_score): se fija el modo
+        # para que un RETRIEVAL_MODE=hybrid del .env no mezcle el BM25 del corpus
+        # real con los chunks de prueba (#42).
+        results = search(query, top_k=len(MOCK_CHUNKS), store=store, mode="dense")
         top, second = results[0], results[1]
         got = top["metadata"]["titulo_canonico"]
 

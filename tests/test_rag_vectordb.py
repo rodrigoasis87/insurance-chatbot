@@ -7,14 +7,20 @@ scripts/test_vectordb.py.
 from collections.abc import Iterator
 
 import pytest
+from langchain_core.documents import Document
 from langchain_core.embeddings import DeterministicFakeEmbedding
 from qdrant_client import QdrantClient, models
 
+from app.rag import vectordb as vectordb_module
+from app.rag.bm25 import BM25Index
 from app.rag.embeddings import get_embedding_dim
 from app.rag.vectordb import (
+    RRF_K,
     colapsar_por_articulo,
     ensure_collection,
     get_vector_store,
+    hybrid_search,
+    rrf_fuse,
     search,
 )
 
@@ -179,3 +185,221 @@ def test_search_devuelve_top_k_articulos_distintos(
 
     assert len(hits) == 2
     assert len({(h["metadata"]["poliza"], h["metadata"]["articulo"]) for h in hits}) == 2
+
+
+# --- Busqueda hibrida: BM25 + denso fusionados con RRF (#42) ---
+
+def _chunk(poliza: str, articulo: int, chunk_index: int = 0, *, documento: int = 1) -> dict:
+    return {
+        "page_content": f"{poliza} art {articulo} chunk {chunk_index}",
+        "metadata": {
+            "poliza": poliza,
+            "documento": documento,
+            "articulo": articulo,
+            "chunk_index": chunk_index,
+        },
+        "score": 0.0,
+    }
+
+
+def _ids(hits: list[dict]) -> list[tuple]:
+    return [(h["metadata"]["poliza"], h["metadata"]["articulo"]) for h in hits]
+
+
+def test_rrf_premia_el_acuerdo_entre_rankings_y_normaliza() -> None:
+    a, b, c, d = (_chunk("P", i) for i in (1, 2, 3, 4))
+    fused = rrf_fuse([[a, b, c], [b, d]])
+
+    assert _ids(fused) == [("P", 2), ("P", 1), ("P", 4), ("P", 3)]
+    maximo = 2 / (RRF_K + 1)
+    assert fused[0]["score"] == pytest.approx((1 / 62 + 1 / 61) / maximo)
+    assert fused[1]["score"] == pytest.approx(0.5)  # 1.º en una sola lista
+    assert all(0 < h["score"] <= 1 for h in fused)
+    assert set(fused[0]) == {"page_content", "metadata", "score"}
+
+
+def test_rrf_primero_en_ambas_listas_vale_uno() -> None:
+    a, b = _chunk("P", 1), _chunk("P", 2)
+    fused = rrf_fuse([[a, b], [a, b]])
+    assert fused[0]["score"] == pytest.approx(1.0)
+
+
+def test_rrf_ignora_el_score_original_de_cada_retriever() -> None:
+    a, b = _chunk("P", 1), _chunk("P", 2)
+    a["score"], b["score"] = 0.01, 999.0  # escalas incomparables (coseno vs. BM25)
+    assert _ids(rrf_fuse([[a, b]])) == [("P", 1), ("P", 2)]
+
+
+def test_rrf_cuenta_una_sola_vez_un_chunk_repetido_en_la_misma_lista() -> None:
+    a = _chunk("P", 1)
+    [hit] = rrf_fuse([[a, dict(a)], []])
+    # Contado dos veces sumaria (1/61 + 1/62); una sola vez vale 1/61 = 0.5 del maximo.
+    assert hit["score"] == pytest.approx(0.5)
+
+
+def test_rrf_distingue_chunks_del_mismo_articulo() -> None:
+    fused = rrf_fuse([[_chunk("P", 1, 0), _chunk("P", 1, 1)]])
+    assert len(fused) == 2  # el colapso por articulo es un paso posterior
+
+
+def test_rrf_con_listas_vacias_y_k_invalido() -> None:
+    assert rrf_fuse([]) == []
+    assert rrf_fuse([[], []]) == []
+    [solo] = rrf_fuse([[], [_chunk("P", 1)]])
+    assert solo["score"] == pytest.approx(0.5)
+    with pytest.raises(ValueError, match="k de RRF"):
+        rrf_fuse([[_chunk("P", 1)]], k=-1)
+
+
+HYBRID_TEXTS = {
+    ("POL1", 2, 0): "el periodo de carencia para enfermedades es de noventa dias",
+    ("POL1", 2, 1): "la carencia no aplica a los accidentes cubiertos",
+    ("POL1", 5, 0): "el derecho de retracto se ejerce dentro de diez dias",
+    ("POL2", 2, 0): "las primas se pagan en unidades de fomento",
+    ("POL2", 7, 0): "la compania reembolsara los gastos medicos razonables",
+}
+
+
+def _hybrid_docs() -> list[Document]:
+    return [
+        Document(
+            page_content=text,
+            metadata={
+                "poliza": poliza,
+                "documento": 1,
+                "ramo": "salud",
+                "año": "2020",
+                "familia": "f",
+                "articulo": articulo,
+                "titulo_canonico": "t",
+                "pagina": 1,
+                "chunk_index": chunk_index,
+            },
+        )
+        for (poliza, articulo, chunk_index), text in HYBRID_TEXTS.items()
+    ]
+
+
+@pytest.fixture
+def hybrid_setup(
+    client: QdrantClient, embeddings: DeterministicFakeEmbedding
+) -> tuple:
+    docs = _hybrid_docs()
+    store = get_vector_store("c", embeddings=embeddings, client=client)
+    store.add_documents(docs)
+    return store, BM25Index(docs)
+
+
+def test_hybrid_devuelve_el_shape_del_contrato_y_colapsa(hybrid_setup: tuple) -> None:
+    store, index = hybrid_setup
+    query = HYBRID_TEXTS[("POL1", 2, 0)]
+    hits = hybrid_search(query, top_k=5, store=store, bm25_index=index, dense_floor=None)
+
+    assert hits[0]["page_content"] == query  # 1.º denso (coseno 1) y 1.º BM25
+    assert hits[0]["score"] == pytest.approx(1.0)
+    for hit in hits:
+        assert set(hit) == {"page_content", "metadata", "score"}
+        assert not any(key.startswith("_") for key in hit["metadata"])
+    # Los 2 chunks de POL1 · Art. 2 matchean "carencia": queda uno solo.
+    assert _ids(hits).count(("POL1", 2)) == 1
+    assert len(set(_ids(hits))) == len(hits)
+    assert [h["score"] for h in hits] == sorted((h["score"] for h in hits), reverse=True)
+
+
+def test_hybrid_piso_semantico_descarta_chunks_solo_lexicos(hybrid_setup: tuple) -> None:
+    store, index = hybrid_setup
+    query = HYBRID_TEXTS[("POL1", 5, 0)]  # coseno 1 consigo mismo, ~0 con el resto
+    # "dias" tambien esta en POL1 · Art. 2: BM25 lo trae aunque no sea semantico.
+    sin_piso = hybrid_search(query, top_k=5, store=store, bm25_index=index, dense_floor=None)
+    con_piso = hybrid_search(query, top_k=5, store=store, bm25_index=index, dense_floor=0.99)
+
+    assert ("POL1", 2) in _ids(sin_piso)
+    assert _ids(con_piso) == [("POL1", 5)]
+    assert con_piso[0]["score"] == pytest.approx(1.0)
+
+
+def test_hybrid_sin_nada_sobre_el_piso_devuelve_vacio(hybrid_setup: tuple) -> None:
+    store, index = hybrid_setup
+    hits = hybrid_search(
+        "carencia", top_k=5, store=store, bm25_index=index, dense_floor=1.01
+    )
+    assert hits == []
+
+
+def test_search_hybrid_usa_umbral_denso_como_piso(
+    hybrid_setup: tuple, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store, index = hybrid_setup
+    monkeypatch.setenv("UMBRAL_SCORE", "0.99")
+    query = HYBRID_TEXTS[("POL1", 5, 0)]
+    hits = search(query, top_k=5, store=store, mode="hybrid", bm25_index=index)
+    assert _ids(hits) == [("POL1", 5)]
+
+
+def test_retrieval_mode_del_entorno_activa_el_hibrido(
+    hybrid_setup: tuple, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store, index = hybrid_setup
+    calls: list[dict] = []
+
+    def spy(query: str, top_k: int, **kwargs) -> list[dict]:
+        calls.append({"top_k": top_k, **kwargs})
+        return []
+
+    monkeypatch.setattr(vectordb_module, "hybrid_search", spy)
+    search("carencia", top_k=3, store=store, bm25_index=index)
+    assert calls == []  # default: dense
+
+    monkeypatch.setenv("RETRIEVAL_MODE", "HYBRID")
+    search("carencia", top_k=3, store=store, bm25_index=index)
+    assert len(calls) == 1
+    assert calls[0]["top_k"] == 3
+    assert calls[0]["bm25_index"] is index
+    assert calls[0]["dense_floor"] == pytest.approx(0.60)
+
+
+def test_modo_explicito_pisa_al_del_entorno(
+    hybrid_setup: tuple, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store, index = hybrid_setup
+    monkeypatch.setenv("RETRIEVAL_MODE", "hybrid")
+    monkeypatch.setattr(
+        vectordb_module, "hybrid_search", lambda *a, **k: pytest.fail("no debia fusionar")
+    )
+    query = HYBRID_TEXTS[("POL2", 7, 0)]
+    [top, *_] = search(query, top_k=2, store=store, mode="dense", bm25_index=index)
+    assert top["score"] == pytest.approx(1.0, abs=1e-6)  # coseno, no RRF
+
+
+def test_search_hybrid_sin_indice_usa_el_de_chunks_jsonl(
+    hybrid_setup: tuple, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store, index = hybrid_setup
+    monkeypatch.setattr(vectordb_module, "get_bm25_index", lambda: index)
+    hits = search(HYBRID_TEXTS[("POL2", 2, 0)], top_k=1, store=store, mode="hybrid")
+    assert _ids(hits) == [("POL2", 2)]
+
+
+def test_search_hybrid_sin_chunks_jsonl_falla_claro(
+    hybrid_setup: tuple, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store, _ = hybrid_setup
+
+    def missing() -> BM25Index:
+        raise FileNotFoundError("No existe data/processed/chunks.jsonl")
+
+    monkeypatch.setattr(vectordb_module, "get_bm25_index", missing)
+    with pytest.raises(FileNotFoundError, match="chunks.jsonl"):
+        search("carencia", store=store, mode="hybrid")
+
+
+@pytest.mark.parametrize("mode", ["sparse", "bm25"])
+def test_modo_no_soportado_falla(
+    hybrid_setup: tuple, monkeypatch: pytest.MonkeyPatch, mode: str
+) -> None:
+    store, index = hybrid_setup
+    with pytest.raises(ValueError, match="no soportado"):
+        search("carencia", store=store, mode=mode, bm25_index=index)
+    monkeypatch.setenv("RETRIEVAL_MODE", mode)
+    with pytest.raises(ValueError, match="no soportado"):
+        search("carencia", store=store, bm25_index=index)
