@@ -211,7 +211,7 @@ pelean, gana la de mayor rango.
 
 | # | Prioridad | Criterio de diseño que impone |
 |---|---|---|
-| 1 | **Seguridad** | Stack 100% local (Ollama + Qdrant en docker compose, sin nube); datos de póliza en volúmenes internos; CORS acotado; **sin PII** en el corpus ni en el sistema (perfil solo in-memory). |
+| 1 | **Seguridad** | Stack **autoalojado** (Ollama + Qdrant en docker compose): la inferencia corre en nuestra infraestructura, **sin APIs de IA de terceros**; datos de póliza en volúmenes internos; CORS acotado; **sin PII** en el corpus ni en el sistema (perfil solo in-memory). Matiz ADR-006: en el **modo demo opt-in** con LLM cloud (API key) solo la consulta sale hacia ese proveedor; embeddings y corpus nunca salen. |
 | 2 | **Trazabilidad** | `answer` **siempre** con `sources[]` (contrato `docs/CONTRACTS.md` §3); la UI muestra póliza/artículo/página; todo paso verificable. |
 | 3 | **0 alucinación** | RAG *grounded*: el LLM **solo cita** contexto recuperado; umbral de score (`UMBRAL_SCORE`) filtra en código antes del LLM; si nada responde, no inventa; las fuentes **web van siempre marcadas** (`origen: web`); guardrail de dominio; **nunca se inventa un precio/rango**; el eval (#19) mide `recall@k`, `cita_ok` y marcación de externas. |
 | 4 | **Velocidad** (si queda) | Inferencia local, `top_k=5`, chunking fijo, respuesta en segundos. |

@@ -2,6 +2,7 @@
 
 import pytest
 from langchain_anthropic import ChatAnthropic
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 
@@ -15,6 +16,8 @@ ENV_VARS = (
     "OPENAI_CHAT_MODEL",
     "ANTHROPIC_API_KEY",
     "ANTHROPIC_CHAT_MODEL",
+    "GOOGLE_API_KEY",
+    "GOOGLE_CHAT_MODEL",
 )
 
 
@@ -82,4 +85,28 @@ def test_anthropic_without_api_key_fails_early(
 ) -> None:
     monkeypatch.setenv("LLM_PROVIDER", "anthropic")
     with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
+        get_llm()
+
+
+def test_switch_to_google_changing_only_llm_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GOOGLE_API_KEY", "AIza-test")  # ya presente en el .env
+    monkeypatch.setenv("LLM_PROVIDER", "google")
+    llm = get_llm()
+    assert isinstance(llm, ChatGoogleGenerativeAI)
+    assert llm.model == "gemini-3.5-flash-lite"
+    assert llm.max_output_tokens == 1024
+
+
+def test_google_model_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GOOGLE_API_KEY", "AIza-test")
+    monkeypatch.setenv("GOOGLE_CHAT_MODEL", "gemini-3.8-flash")
+    monkeypatch.setenv("LLM_PROVIDER", "google")
+    assert get_llm().model == "gemini-3.8-flash"
+
+
+def test_google_without_api_key_fails_early(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LLM_PROVIDER", "google")
+    with pytest.raises(ValueError, match="GOOGLE_API_KEY"):
         get_llm()

@@ -186,6 +186,17 @@ def search(query: str, top_k: int = 5) -> list[dict]:
   artículo quede afuera. Artículos de pólizas distintas **nunca** se colapsan,
   aunque compartan número: la cita (póliza + página) es distinta. Aplica
   `app/rag/vectordb.py::colapsar_por_articulo`.
+- **Modo de retrieval** (`RETRIEVAL_MODE`, #42): `dense` (default) o `hybrid`.
+  El shape y el colapso son los mismos en ambos; cambia qué significa `score`:
+  - `dense`: similitud **coseno** de Qdrant. Hard gate `UMBRAL_SCORE` (0.60).
+  - `hybrid`: ranking denso + ranking **BM25** (`app/rag/bm25.py`, índice en
+    memoria sobre `chunks.jsonl`) fusionados con **Reciprocal Rank Fusion**
+    (k=60, 20 candidatos por lista). `score` = RRF **normalizado a (0, 1]**
+    (`1.0` = primero en ambos rankings; `0.5` = primero en uno solo). Antes de
+    fusionar se aplica `UMBRAL_SCORE` como **piso semántico** (solo chunks con
+    coseno ≥ umbral son elegibles; los solo-léxicos se descartan) y `query()`
+    aplica `UMBRAL_SCORE_HYBRID` (0.40) sobre el score fusionado. Calibración y
+    A/B en `docs/umbral_score.md` §7–8.
 
 ---
 
@@ -224,9 +235,19 @@ Reglas:
 
 - Citas inline: interna `[fuente: POL320130223 · Art. 2]` coherente con
   `sources`; externa `[fuente web: <dominio>]` con su URL en `sources`.
+- **La página es opcional en la cita inline.** El modelo puede emitir
+  `[fuente: POL320130223 · Art. 2]`, `[fuente: POL320130223 · Art. 2 · pág. 14]`
+  o, en formato numerado, `[1] POL320130223 · Art. 2 · pág. 14: <texto>`. Las
+  tres son la **misma cita**: la página aporta trazabilidad, no cambia la
+  identidad de la fuente, y su presencia no vuelve inválida la cita. La
+  validación contra `sources` se hace siempre por `(poliza, articulo)`.
 - El LLM **solo cita** lo presente en el contexto invocado (chunks de la sección
   2 o resultados de `web_search`). Nunca inventa.
 - `sources` ordenadas: internas primero (score desc.), luego web. Sin duplicados.
+- `query()` y `query_stream()` aceptan además dos parámetros **opcionales** de
+  observabilidad (#48): `tracer` (inyectable; por defecto el global, que es
+  noop) y `session_id` (agrupa los traces de una conversación). Ninguno de los
+  dos cambia la respuesta ni el flujo → el contrato público no cambia.
 - `UMBRAL_SCORE` es hard gate: un chunk bajo umbral **jamás llega al prompt**
   (decisión de alcance). Con 0 chunks sobrevivientes → sin contexto.
 - El agente ejecuta a lo sumo **1 llamada a `web_search`** por consulta
@@ -234,27 +255,70 @@ Reglas:
 - `#19` valida con el golden set: `recall@k`, `cita_ok` (internas) y marcación
   correcta de fuentes web.
 
+### 3.1 LLM intercambiable y variante streaming (ADR-006)
+
+- El LLM de chat se elige con `LLM_PROVIDER` (default `ollama`, ADR-001) o se
+  fuerza por petición (`provider`). `ollama | openai | anthropic | google`; los
+  cloud (key API) son **opt-in de demo**: la consulta sale del sistema solo en
+  ese modo; embeddings y corpus siguen siendo locales (ADR-001).
+- `query_stream()` (`app/rag/query.py`) es la variante streaming de `query()`:
+  **mismo flujo y ≤2 generaciones LLM**, pero emite eventos
+  `{type: status|token|sources|done}`. Detección de `NEED_WEB` por **peek del
+  primer token** del stream (la generación grounded se muestra en vivo; si
+  arranca con `NEED_WEB` se descarta y se regenera con la web). `query()`
+  (no-stream) se conserva para scripts y tests.
+
 ---
 
 ## 4. Contrato API → UI (#16 → #18)
 
 ```json
-POST /chat     {"question": "¿…?"}
+// Auth (#44): POST /chat, /chat/stream y /policy-recombine exigen el header
+//   X-API-Key: <API_KEY del .env>
+// sin header o con key distinta → 401 {"detail": "API key inválida o ausente (header X-API-Key)"}
+//                                  + header WWW-Authenticate: APIKey
+// GET /health y GET /policies no piden key.
+
+POST /chat     {"question": "¿…?", "provider": "ollama|google"}   // provider opcional (demo, ADR-006)
   → {"answer": "…",
      "sources": [{"origen": "poliza", "poliza": "POL320130223", "articulo": 2, "pagina": 1},
-                 {"origen": "web", "url": "https://...", "titulo": "..."}]}
+                 {"origen": "web", "url": "https://...", "titulo": "..."}],
+     "provider": "google", "model": "gemini-3.5-flash-lite"}
 
-GET  /health   → {"qdrant": "ok", "ollama": "ok"}
+POST /chat/stream   {"question": "¿…?", "provider": "ollama|google"}  // SSE; eventos por línea:
+  → data: {"type": "status", "kind": "searching"|"llm"|"web"}
+    data: {"type": "token", "text": "…"}
+    data: {"type": "sources", "sources": ["…"]}
+    data: {"type": "done"}        // data: {"type":"error","message":"…"} corta el stream
+
+GET  /health   → {"qdrant": "ok", "ollama": "ok", "provider": "ollama", "model": "qwen3:4b-instruct"}
 
 GET  /policies → [{"poliza": "POL320130223", "ramo": "salud", "año": "2013"}]
 ```
 
 Reglas:
 
+- **Autenticación (#44)**: API key estática en el header `X-API-Key`, comparada
+  en tiempo constante contra `API_KEY` del `.env` (sin servicio de identidad).
+  Aplica a `POST /chat`, `POST /chat/stream` y `POST /policy-recombine` (§4.1);
+  `GET /health` queda **público** porque lo usan el smoke test y los healthchecks.
+  `GET /policies` y los PDFs de `/generated` quedan como estaban (fuera del
+  alcance de #44). El 401 se resuelve **antes** de validar el body (un body
+  inválido sin key es 401, no 422). Con `API_KEY` vacío el API corre en
+  **modo dev sin auth** y lo avisa con un warning en los logs al arrancar.
+  Clientes: la UI (`#18`) y `scripts/demo_recorrido.py` mandan la key si
+  `API_KEY` está definida; Swagger (`/docs`) la pide con el botón *Authorize*.
 - `#16` es **HTTP delgado**: no tiene lógica RAG propia; delega en `query()`
-  de `#17`.
+  / `query_stream()` de `#17`.
 - `#18` consume **`#16`** (no `#17` directo); muestra `poliza`/`articulo`/`pagina`
   como fuentes, diferenciando visualmente las de `origen: "web"`.
+- `provider` es opcional en ambos endpoints: default `LLM_PROVIDER` del `.env`;
+  por petición permite a la UI cambiar de LLM sin reiniciar (selector, ADR-006).
+- `session_id` es **opcional** en ambos endpoints (#48): solo agrupa los traces
+  de la misma conversación en Langfuse; **no** cambia la respuesta ni el flujo.
+  El body anterior sigue siendo válido.
+- `/chat/stream` mantiene el mismo flujo y límite de ≤2 generaciones LLM de `§3`;
+  `token` es la respuesta (grounded en vivo), `sources` llega al final.
 - `GET /policies` puede derivar la lista de `data/raw_pdfs/` o de los índices;
   la fuente concreta la define `#16`.
 
@@ -268,7 +332,7 @@ Corre hoy como **CLI** (`uv run python -m app.generation.dem`); el endpoint se
 cablea en `#16` con este contrato.
 
 ```json
-POST /policy-recombine
+POST /policy-recombine            // requiere X-API-Key (§4, #44)
   {"molde": "POL320200071",
    "perfil": {"edad": "30-40", "preexistencias": "no", "deportes_riesgo": "no",
               "fonasa_isapre": "isapre", "embarazo": "no", "cronicas": "no",

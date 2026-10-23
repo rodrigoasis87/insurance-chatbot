@@ -7,20 +7,24 @@ requires-python = ">=3.12"
 dependencies = [
     "boto3>=1.43.100",
     "chainlit>=2.12.0",
-    "duckduckgo-search>=8.1.1",
+    "ddgs>=9.16.0",
     "fastapi>=0.141.1",
+    "httpx>=0.28.1",
     "langchain>=1.4.2",
     "langchain-anthropic>=1.7.5",
     "langchain-community>=0.4.2",
+    "langchain-google-genai>=4.4.1",
     "langchain-ollama>=1.1.0",
     "langchain-openai>=1.6.7",
     "langchain-qdrant>=1.1.0",
     "langchain-text-splitters>=1.1.2",
+    "langfuse>=5.0.4",
     "langgraph>=1.2.12",
     "pandas>=3.0.6",
     "pymupdf>=1.28.2",
     "python-dotenv>=1.2.3",
     "qdrant-client>=1.19.1",
+    "rank-bm25>=0.2.2",
     "tqdm>=4.70.1",
     "uvicorn>=0.54.0",
 ]
@@ -28,6 +32,9 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
+]
+eval = [
+    "ragas>=0.4.3",
 ]
 
 [tool.pytest.ini_options]

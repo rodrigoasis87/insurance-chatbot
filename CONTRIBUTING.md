@@ -17,10 +17,11 @@ Un Issue o tarea se considera oficialmente **Done** (Terminada) únicamente cuan
   * Pasan las pruebas unitarias e integración con `pytest` (si aplica para la tarea).
   * El entorno es 100% reproducible usando el gestor `uv`.
 * **Proceso de Git:**
-  * El trabajo se realizó en una rama dedicada `feature/*`.
-  * Se abrió un **Pull Request (PR)** hacia la rama principal (`main`).
+  * El trabajo se realizó en una rama dedicada `feature/*` creada desde `develop`.
+  * Se abrió un **Pull Request (PR)** hacia la rama de integración (`develop`).
   * El PR fue revisado y aprobado por el **Tech Lead** o al menos un integrante del equipo.
   * Se resolvieron todos los conflictos de integración antes de hacer el merge.
+  * `main` solo se actualiza vía PR de integración `develop` → `main` (releases / demo-day).
 * **Documentación:**
   * Las funciones y módulos principales incluyen *docstrings* y *type hints*.
   * Se actualizó el `README.md` si la tarea agregó nuevas variables de entorno, endpoints o dependencias.
@@ -29,17 +30,21 @@ Un Issue o tarea se considera oficialmente **Done** (Terminada) únicamente cuan
 
 ## 2. Estrategia de Ramificación (Git Flow)
 
-Para mantener la rama principal siempre en estado ejecutable, utilizaremos el flujo de **Feature Branches**:
+Para mantener la rama principal siempre en estado ejecutable, utilizamos un
+flujo de **Git Flow simplificado** con `develop` como rama de integración:
 
 ```text
-main (Rama protegida / Producción)
- ├── feature/dataset-eda            # EDA del dataset                    (app/data)
- ├── feature/eda-and-pdf-parser     # Extracción de texto + chunking     (app/data)
- ├── feature/chunking-benchmark     # Benchmark de estrategias de chunk  (app/data)
- ├── feature/vectordb-setup         # Vector store + indexado            (app/retrieval)
- ├── feature/web-search-tool        # Búsqueda web + resumen             (app/generation)
- └── ... nuevas ramas se crean desde cada Issue en GitHub Projects
+main (protegida · releases / demo-day, solo se actualiza vía PR desde develop)
+ └── develop (integración · siempre ejecutable; las ramas feature nacen de aquí)
+      ├── feature/issue-19-golden-set      # eval golden set              (app/rag)
+      ├── feature/issue-20-suite-pytest    # suite pytest consolidada     (tests/)
+      ├── feature/issue-22-demo-video      # demo + README de cierre      (docs/)
+      └── ... nuevas ramas se crean desde cada Issue en GitHub Projects
 ```
+
+> Nota: hasta octubre 2026 las ramas `feature/*` nacían de `main`. La rama
+> `demo-integrada` fue renombrada a `develop` (misma historia, sin duplicados)
+> y concentra todo el trabajo de demo (agente, API, UI, compose, generación DEM).
 
 ## 3. Flujo de Trabajo Diario (Comandos Git y UV)
 
@@ -48,33 +53,29 @@ Para mantener la calidad del repositorio y evitar conflictos entre las distintas
 ---
 
 ### A. Inicio de la jornada (Sincronización)
-Antes de comenzar a trabajar o programar una nueva funcionalidad, actualizá tu rama `main` local y sincronizá las dependencias del proyecto:
+Antes de comenzar a trabajar o programar una nueva funcionalidad, actualizá tu rama `develop` local y sincronizá las dependencias del proyecto:
 
 ```bash
-# 1. Cambiar a main y traer los últimos cambios
-git checkout main
-git pull origin main
+# 1. Cambiar a develop y traer los últimos cambios
+git checkout develop
+git pull origin develop
 
 # 2. Sincronizar el entorno virtual de Python con uv
 uv sync
 ```
 
 ### B. Iniciar una nueva tarea (Crear la rama)
-Las ramas se crean a partir de las Issues asignadas en GitHub Projects.
-
-Creá la rama en la interfaz de GitHub desde el panel derecho de la Issue (Create a branch).
-
-Traé la rama a tu máquina local:
+Las ramas se crean a partir de las Issues asignadas en GitHub Projects, **siempre desde `develop`** (cambiá la rama base en el panel de la Issue antes de usar "Create a branch", o creala manualmente):
 
 ```bash
 # Actualizar las referencias de ramas remotas
 git fetch origin
 
-# Moverte a la nueva rama
-git checkout <nombre-de-la-rama>
+# Crear la rama de la issue desde develop
+git checkout -b feature/issue-<N>-<nombre-corto> origin/develop
 ```
 
-Nota: Si creás la rama manualmente en local, asegurate de seguir la convención de nombres (ej. feature/dataset-eda, feature/chunking-benchmark).
+Nota: si creás la rama desde la interfaz de GitHub, asegurate de que la rama base sea `develop` y de seguir la convención de nombres (ej. `feature/issue-19-golden-set`).
 
 ### C. Desarrollo local y gestión de librerías
 
@@ -108,13 +109,13 @@ git add .
 git commit -m "feat(tools): implement web search with duckduckgo"
 ```
 
-### D. Mantener la rama actualizada con main
-Si pasaron varios días o tus compañeros mergearon código a main, integrá esos cambios en tu rama para resolver conflictos de forma temprana:
+### D. Mantener la rama actualizada con develop
+Si pasaron varios días o tus compañeros integraron código a `develop`, traé esos cambios a tu rama para resolver conflictos de forma temprana:
 
 ```bash
-# Traer e integrar cambios de main a tu rama actual
+# Traer e integrar cambios de develop a tu rama actual
 git fetch origin
-git merge origin/main
+git merge origin/develop
 
 # Re-sincronizar dependencias si hubo cambios en pyproject.toml
 uv sync
@@ -122,26 +123,30 @@ uv sync
 
 ### E. Finalizar tarea y abrir Pull Request (PR)
 
-Antes de abrir el PR, asegurate de que tu rama esté al día con `main`: `git merge origin/main`. Si GitHub marca la rama como *"out-of-date"*, el merge del PR puede bloquearse (o quedar pendiente en *'Checking for the ability to merge...'*).
+Antes de abrir el PR, asegurate de que tu rama esté al día con `develop`: `git merge origin/develop`. Si GitHub marca la rama como *"out-of-date"*, el merge del PR puede bloquearse (o quedar pendiente en *'Checking for the ability to merge...'*).
 
 1. Subir tu rama a GitHub: 
 ```bash
 git push -u origin <nombre-de-la-rama>
 ```
 
-2. Abrir el PR en GitHub:
+2. Abrir el PR en GitHub **con base en `develop`**:
 
-Ve al repositorio en GitHub y hacé clic en Compare & pull request.
+Ve al repositorio en GitHub y hacé clic en Compare & pull request (verificá que el rama base sea `develop`, no `main`).
 
 
 ### F. Post-Merge (Limpieza en local)
-Una vez que tu PR fue aprobado y mergeado a main en GitHub:
+Una vez que tu PR fue aprobado y mergeado a develop en GitHub:
 
 ```bash
-# Volver a main y actualizar con tu trabajo ya integrado
-git checkout main
-git pull origin main
+# Volver a develop y actualizar con tu trabajo ya integrado
+git checkout develop
+git pull origin develop
 
 # Borrar la rama local que ya fue mergeada
 git branch -d <nombre-de-la-rama>
 ```
+
+### G. Integración a main (solo Tech Lead)
+
+`main` solo se actualiza vía un PR de `develop` → `main`, en hitos de release o antes del demo-day. Ese PR es el único punto donde se validan juntos todos los avances del equipo.

@@ -10,6 +10,7 @@ MVP y el flujo con las dos extensiones de futuro.
 - Enunciado oficial y su traducción a alcance: `docs/enunciado.md`
 - Decisiones de stack y arquitectura: `docs/STACK.md` (ADR-001) y
   `docs/adr/` (ADR-002…ADR-005).
+- Observabilidad en runtime: `docs/OBSERVABILITY.md` (§2.2).
 - Issues de referencia entre `#4` y `#22` más las de cada célula (Generación R3: #36).
 
 ---
@@ -21,13 +22,14 @@ MVP y el flujo con las dos extensiones de futuro.
 | Datos | D1 · Captura y limpieza | PDFs (S3) → parser → `articulos.jsonl` (227 art. + metadata) | #4 | ✅ hecho |
 | Datos | D2 · Chunking | chunks 1000/150 que nunca cruzan artículo → `chunks.jsonl` | #7 | ✅ hecho |
 | Motor RAG | R1 · Indexación y retrieval | embeddings `qwen3-embedding:0.6b` + Qdrant `polizas` (1024d) + `search()` con colapso por `(poliza, articulo)` | #9 | ✅ hecho |
-| Motor RAG | R2 · Generación con citas / agente | `query()` ≤2 llamadas LLM (`qwen3:4b-instruct`) + `web_search` | #17, #8 | ⚠ pendiente |
-| Generación | R3 · Recombinación DEM (**demo v0**) | `app/generation/` → `/policy-recombine` → **PDF borrador DEM** (bloques canónicos + perfil sin PII; sin emisión) | #36 | ⚠ pendiente |
-| Exposición | E1 · API y UI | FastAPI delgado + Chainlit con fuentes visibles | #16, #18 | ⚠ pendiente |
-| Garantías | G1 · QA, eval, ops | pytest con mocks · golden set · compose/README/demo | #20, #19, #21, #22 | ⚠ parcial |
+| Motor RAG | R2 · Generación con citas / agente | `query()` ≤2 llamadas LLM (`qwen3:4b-instruct`) + `web_search` | #17, #8 | ✅ hecho |
+| Generación | R3 · Recombinación DEM (**demo v0**) | `app/generation/` → `/policy-recombine` → **PDF borrador DEM** (bloques canónicos + perfil sin PII; sin emisión) | #36 | ✅ hecho |
+| Exposición | E1 · API y UI | FastAPI delgado + Chainlit con fuentes visibles | #16, #18 | ✅ hecho |
+| Garantías | G1 · QA, eval, ops | pytest con mocks · golden set · compose/README/demo | #20, #19, #21, #22 | ⚠ parcial (#21 hecho; #19, #20, #22 abiertos) |
+| Garantías | G1 · Observabilidad | Tracing en runtime con Langfuse (opcional, noop por defecto) | #48 | ✅ hecho |
 
-Hoy corren en Docker Compose local **Qdrant (6333) y Ollama (11434)**; la API y
-la UI se agregan en #21. Detalle del runtime en `docs/CONTRACTS.md` §4.
+Hoy corren en un **Docker Compose único** (Qdrant 6333 · Ollama 11434 · API 8000 ·
+UI 8001; #21). Detalle del runtime en `docs/CONTRACTS.md` §4.
 
 ---
 
@@ -109,13 +111,107 @@ la UI se agregan en #21. Detalle del runtime en `docs/CONTRACTS.md` §4.
 │   Chainlit: chat con fuentes visibles; las de origen web se              │
 │     diferencian visualmente de las citas de póliza                       │
 └──────────────────────────────────────────────────────────────────────────┘
-                          ▲
-        ┌─────────────────┴─────────────────┐
-        │ GARANTÍAS · G1 (transversal)      │  #19 eval golden: recall@k,
-        │ #20 pytest con mocks ·            │  cita_ok, marcación de web
-        │ #21/#22 compose + README + video  │
-        └───────────────────────────────────┘
+                           ▲
+         ┌─────────────────┴─────────────────┐
+         │ GARANTÍAS · G1 (transversal)      │  #19 eval golden: recall@k,
+         │ #20 pytest con mocks ·            │  cita_ok, marcación de web
+         │ #21/#22 compose + README + video  │
+         │ #48 tracing en runtime (Langfuse) │  ◄── opcional: noop si no está
+         └───────────────────────────────────┘
 ```
+
+## 2.1 Bloque G1 · Eval determinístico y RAGAS (offline, fuera del hot path)
+
+```text
+Artefactos del runtime (capturados por query(trace=...))
+  ├─ question (golden set)
+  ├─ answer (generada por query() in-process)
+  ├─ route (policy | web | abstain | web_failed)
+  ├─ policy_retrieved_contexts (tras hard gate UMBRAL_SCORE)
+  └─ sources[] / retrieval_hits
+                    │
+                    ▼
+                ┌─────────────┐
+                │      G1     │  corre con: uv run --group eval ...
+                │   (offline) │  fuera de Docker / fuera del hot path
+                └─────┬───────┘
+                      │
+              ┌───────┴─────────────────────────────────────────────────┐
+              ▼                                                         ▼
+    ┌─────────────────────────────────┐           ┌─────────────────────────────────────────┐
+    │      EVAL DETERMINÍSTICO        │           │           RAGAS (LLM-as-a-judge)         │
+    │      app/rag/eval.py           │           │           scripts/evaluate_ragas.py     │
+    │  (puro, sin red, sin ragas)     │           │           (lazy import ragas, grupo eval)│
+    └─────────────┬───────────────────┘           └─────────────────┬─────────────────────┘
+                  │                                                     │
+                  │  Aplica a TODOS los comportamientos:                │  SOLO filas answer_from_policy
+                  │  - expected_hit (retrieval vs reference_contexts)   │  Y SOLO con contextos tras hard gate
+                  │  - cita_ok / cita_ok_rate (valida citas inline)    │
+                  │  - expected_abstention_complied (abstain_*)         │  Juez: Ollama (qwen3:4b-instruct) o Google
+                  │  - web_routing_rate (answer_from_web)               │  (temperature 0) → parseado a 0-1
+                  │                                                     │  Métricas:
+                  └─────────────┬───────────────────────────────────────┤  - faithfulness
+                                │                                       │  - context_recall (+reference_answer)
+                                │                                       │  - context_precisionWithReference
+                                ▼                                       ▼
+                              ┌─────────────────────────────────────────────┐
+                              │                Agregados                     │
+                              │  data/evaluation/results/<run_id>/           │
+                              │    ├─ run.json      (reproducibilidad)       │
+                              │    ├─ results.jsonl (por pregunta)           │
+                              │    └─ summary.json  (agregados + ragas)      │
+                              │                │ --report-doc               │
+                              │                ▼                            │
+                              │              docs/eval/LATEST.md            │
+                              └─────────────────────────────────────────────┘
+```
+
+## 2.2 Bloque de observabilidad en runtime · Langfuse (opcional, en el hot path)
+
+Complementario a G1 (§2.1): el eval es **offline y por lotes**; Langfuse traza
+**esta** consulta mientras el usuario la espera. Opcional: sin configurarlo, el
+tracer es un noop y el pipeline no cambia (#48).
+
+```text
+             POST /chat  (o /chat/stream) · session_id?
+                              │
+                              ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│  MOTOR RAG · R1 + R2  instrumentado  (app/rag/query.py)                │
+│                                                                        │
+│  ┌── rag.query (raíz) ──────────────────────────────────────────────┐  │
+│  │  metadata: route (policy|web|abstain|web_failed) · n_fuentes*    │  │
+│  │                                                                  │  │
+│  ┌── rag.retrieve (retriever) ──────────────────────────────────┐      │
+│  │  top_k · n_candidatos · n_hits                               │      │
+│  │  ┌ rag.hard_gate ┐  umbral · n_hits                          │      │
+│  │  └───────────────┘  (ADR-004)                                │      │
+│  └──────────────────────────────────────────────────────────────┘      │
+│  ┌── rag.llm_generate (generation) ─────────────────────────────┐      │
+│  │  prompt · modelo · respuesta                                 │      │
+│  │  need_web                                                    │      │
+│  └──────────────────────────────────────────────────────────────┘      │
+│  ┌── rag.web_search (tool) ─────────────────────────────────────┐      │
+│  │  consulta · resultados · n_resultados                        │      │
+│  └──────────────────────────────────────────────────────────────┘      │
+│  ┌── rag.llm_generate_web (generation) ─────────────────────────┐      │
+│  │  prompt · modelo · respuesta (web)                           │      │
+│  └──────────────────────────────────────────────────────────────┘      │
+│  └──────────────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────────┘
+                                   │  interfaz propia (app/observability)
+                                   │  fail-open: si Langfuse cae, la consulta sigue
+                                   ▼
+                   ┌───────────────────────────────┐
+                   │  Langfuse (self-host o cloud) │  → UI: traces, latencia,
+                   └───────────────────────────────┘     ruta, errores, sesión
+```
+
+**Regla de diseño:** la instrumentación **nunca** puede romper la respuesta. El
+SDK de Langfuse no se importa en el código de negocio: `app/rag/query.py` solo
+conoce la interfaz `Tracer` (`app/observability/tracing.py`), que por defecto
+es un noop. Detalle completo (variables, self-host, tests) en
+`docs/OBSERVABILITY.md`.
 
 ---
 
@@ -238,6 +334,7 @@ sustentan.
 ## 6. Referencias
 
 - `docs/CONTRACTS.md` — contratos de datos, runtime y agente (`query()` ≤2 llamadas).
+- `docs/OBSERVABILITY.md` — tracing en runtime con Langfuse (§2.2), opcional.
 - `docs/umbral_score.md` — `UMBRAL_SCORE` empírico (0.60): metodología y distribuciones (ADR-004).
 - `docs/narrative.md` §2/§6/§7 — mapa de actores, células del MVP y roadmap.
 - `docs/enunciado.md` — requisitos de la consigna ("Insurance Policy Generation Chatbot").
@@ -245,4 +342,4 @@ sustentan.
   documento) · ADR-003 (chunking) · ADR-004 (colapso + `UMBRAL_SCORE`) · ADR-005
   (agente + web en el MVP).
 - Issues: #4, #7 (Datos) · #9, #8, #17 (Motor) · #36 (Generación) ·
-  #16, #18 (Exposición) · #19, #20, #21, #22 (Garantías).
+  #16, #18 (Exposición) · #19, #20, #21, #22 (Garantías) · #48 (Observabilidad).

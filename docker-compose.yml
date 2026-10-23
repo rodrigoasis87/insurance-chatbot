@@ -18,6 +18,65 @@ services:
       - ollama_models:/root/.ollama
     restart: unless-stopped
 
+  api:
+    build: .
+    container_name: insurance-api
+    ports:
+      - "8000:8000"
+    volumes:
+      # El API NO copia /data (ADR-001): /policy-recombine (§4.1) necesita
+      # articulos.jsonl y escribe el PDF borrador en data/generated.
+      - ./data:/app/data
+    environment:
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: http://ollama:11434
+      # Retrieval (#42): dense | hybrid. El indice BM25 del modo hybrid se arma
+      # desde data/processed/chunks.jsonl (montado arriba con ./data).
+      RETRIEVAL_MODE: ${RETRIEVAL_MODE:-dense}
+      UMBRAL_SCORE_HYBRID: ${UMBRAL_SCORE_HYBRID:-0.40}
+      # LLM (ADR-006): compose interpola el .env local en el contenedor sin
+      # exponer las credenciales AWS. Default local = Ollama (ADR-001).
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen3:4b-instruct}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      GOOGLE_CHAT_MODEL: ${GOOGLE_CHAT_MODEL:-gemini-3.5-flash-lite}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Observabilidad (Issue #48): Langfuse es OPCIONAL. Con LANGFUSE_ENABLED
+      # en false (o sin keys) el modulo app.observability queda en noop.
+      # El stack de Langfuse vive en docker-compose.observability.yml (overlay).
+      LANGFUSE_ENABLED: ${LANGFUSE_ENABLED:-false}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL:-http://127.0.0.1:3000}
+      LANGFUSE_ENVIRONMENT: ${LANGFUSE_ENVIRONMENT:-local}
+      # Auth del API (#44): X-API-Key en /chat, /chat/stream y /policy-recombine.
+      # Vacio = modo dev sin auth (warning en logs). /health sigue publico.
+      API_KEY: ${API_KEY:-}
+    depends_on:
+      - qdrant
+      - ollama
+    restart: unless-stopped
+
+  ui:
+    build: .
+    container_name: insurance-ui
+    command: ["uv", "run", "chainlit", "run", "app/ui/chat.py", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8001:8000"
+    environment:
+      API_URL: http://api:8000
+      # La UI manda la misma key al API en el header X-API-Key (#44).
+      API_KEY: ${API_KEY:-}
+      # Login de la UI: Chainlit no arranca sin CHAINLIT_AUTH_SECRET (firma la
+      # sesion). Usuario/contraseña vacios = admin/admin (default en app/ui/chat.py).
+      CHAINLIT_AUTH_SECRET: ${CHAINLIT_AUTH_SECRET:-}
+      UI_USERNAME: ${UI_USERNAME:-}
+      UI_PASSWORD: ${UI_PASSWORD:-}
+    depends_on:
+      - api
+    restart: unless-stopped
+
 volumes:
   qdrant_data:
   ollama_models:

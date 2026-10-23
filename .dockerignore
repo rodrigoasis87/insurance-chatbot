@@ -1,0 +1,12 @@
+.venv/
+**/__pycache__/
+*.pyc
+.env
+.git/
+data/
+tests/
+docs/
+scripts/
+.chainlit/translations/*
+!.chainlit/translations/es.json
+!.chainlit/translations/en-US.json
