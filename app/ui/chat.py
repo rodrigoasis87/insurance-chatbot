@@ -25,10 +25,20 @@ alcanza ``API_URL=http://api:8000``, que es interno a docker).
 import hmac
 import json
 import os
+import sys
+from pathlib import Path
 
 import chainlit as cl
 import httpx
 from chainlit.input_widget import Select
+
+# Chainlit carga este módulo con ``spec_from_file_location`` y solo agrega su
+# propio directorio (app/ui) a ``sys.path``, no la raíz del proyecto. Como el
+# módulo importa ``app.ui.dem_form`` (y este ``app.generation``), insertamos la
+# raíz para que el paquete ``app`` sea importable en Docker y en dev local.
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
 
 from app.ui.dem_form import (
     MOLDE_DEFAULT,
