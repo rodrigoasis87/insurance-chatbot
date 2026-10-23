@@ -18,6 +18,9 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY app ./app
 COPY chainlit.md ./
 COPY .chainlit/config.toml .chainlit/config.toml
+# Textos del login: "Usuario" en vez de "Correo electrónico" (el resto de
+# idiomas los autogenera Chainlit al arrancar).
+COPY .chainlit/translations/es.json .chainlit/translations/en-US.json .chainlit/translations/
 
 EXPOSE 8000
 

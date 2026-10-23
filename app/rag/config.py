@@ -58,6 +58,10 @@ DEFAULT_UMBRAL_SCORE_HYBRID = 0.40
 DEFAULT_LANGFUSE_BASE_URL = "http://localhost:3000"
 DEFAULT_LANGFUSE_ENVIRONMENT = "local"
 
+# Autenticacion minima del API (#44): API_KEY vacio = modo dev sin auth.
+# No hay default: la key la define cada despliegue en su .env.
+DEFAULT_API_KEY = ""
+
 
 def _env(name: str, default: str) -> str:
     """Devuelve la variable de entorno sin espacios, o ``default`` si esta vacia."""
@@ -98,6 +102,7 @@ class Settings:
     langfuse_secret_key: str
     langfuse_base_url: str
     langfuse_environment: str
+    api_key: str
 
 
 def get_settings() -> Settings:
@@ -134,4 +139,5 @@ def get_settings() -> Settings:
         langfuse_secret_key=_env("LANGFUSE_SECRET_KEY", ""),
         langfuse_base_url=_env("LANGFUSE_BASE_URL", DEFAULT_LANGFUSE_BASE_URL),
         langfuse_environment=_env("LANGFUSE_ENVIRONMENT", DEFAULT_LANGFUSE_ENVIRONMENT),
+        api_key=_env("API_KEY", DEFAULT_API_KEY),
     )

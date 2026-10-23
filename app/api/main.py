@@ -4,6 +4,9 @@ Sin logica RAG propia: delega en ``app.rag.query.query()`` (#17). ``/health`` y
 ``/policies`` derivan del estado real de Qdrant y Ollama (no del indice local,
 que no vive en el contenedor).
 
+Auth (#44): ``/chat``, ``/chat/stream`` y ``/policy-recombine`` exigen el header
+``X-API-Key`` (ver ``app.api.auth``); ``/health`` queda público.
+
 Correr local:  uv run uvicorn app.api.main:app --port 8000
 """
 
@@ -15,11 +18,12 @@ from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator, Literal
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, create_model
 
+from app.api.auth import avisar_si_modo_dev, require_api_key
 from app.generation.dem import PERFIL_SCHEMA
 from app.observability import get_tracer
 from app.paths import DATA_DIR
@@ -34,7 +38,8 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    """Al apagar el API, envia los traces pendientes a Langfuse (#48)."""
+    """Avisa si arranca sin auth (#44) y, al apagar, hace flush de Langfuse (#48)."""
+    avisar_si_modo_dev()
     yield
     try:
         get_tracer().flush()
@@ -152,7 +157,11 @@ def _año(poliza: str) -> str | None:
     return f"20{digits[3]}{digits[4]}" if len(digits) >= 5 else None
 
 
-@app.post("/chat", response_model=ChatResponse)
+@app.post(
+    "/chat",
+    response_model=ChatResponse,
+    dependencies=[Depends(require_api_key)],
+)
 def chat(body: ChatRequest) -> ChatResponse:
     provider = _validar_provider(body.provider)
     try:
@@ -179,7 +188,7 @@ def chat(body: ChatRequest) -> ChatResponse:
     )
 
 
-@app.post("/chat/stream")
+@app.post("/chat/stream", dependencies=[Depends(require_api_key)])
 def chat_stream(body: ChatRequest) -> StreamingResponse:
     """SSE del pipeline streaming (ADR-006); mismo body que ``/chat``.
 
@@ -208,7 +217,11 @@ def chat_stream(body: ChatRequest) -> StreamingResponse:
     return StreamingResponse(gen(), media_type="text/event-stream")
 
 
-@app.post("/policy-recombine", response_model=RecombineResponse)
+@app.post(
+    "/policy-recombine",
+    response_model=RecombineResponse,
+    dependencies=[Depends(require_api_key)],
+)
 def policy_recombine(body: RecombineRequest) -> dict[str, Any]:
     """Recombinación DEM demo v0 (#36): molde + perfil curado → borrador §4.1."""
     from app.generation.dem import generar_dem
@@ -227,6 +240,7 @@ def policy_recombine(body: RecombineRequest) -> dict[str, Any]:
 
 @app.get("/health")
 def health() -> dict[str, str]:
+    """Estado de Qdrant/Ollama y LLM activo. Público (sin API key, #44)."""
     qdrant = "ok"
     try:
         get_client().get_collections()

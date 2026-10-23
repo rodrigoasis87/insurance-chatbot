@@ -1,4 +1,4 @@
-"""Recorrido guiado de la demo (Issue #36): 5 preguntas curadas + generación DEM.
+r"""Recorrido guiado de la demo (Issue #36): 5 preguntas curadas + generación DEM.
 
 Cada item anota qué se espera mostrar. Ejecutar contra el stack local:
 
@@ -7,15 +7,26 @@ Cada item anota qué se espera mostrar. Ejecutar contra el stack local:
 Imprime pregunta respuesta y fuentes para ensayar antes de la demostración.
 El paso 6 (Recombinación DEM · §4.1) corre contra el API en :8000, así que la
 demo completa necesita el stack levantado (`docker compose up -d api qdrant ollama`).
+
+Auth (#44): si ``API_KEY`` está en el ``.env`` el paso 6 manda ``X-API-Key``.
+Equivalente con curl (exportá la key en tu shell; ``/health`` no la pide):
+
+    curl -X POST localhost:8000/policy-recombine \
+      -H 'Content-Type: application/json' -H "X-API-Key: $API_KEY" \
+      -d '{"molde":"POL320200071","perfil":{"edad":"30-40","preexistencias":"no",
+           "deportes_riesgo":"no","fonasa_isapre":"isapre","embarazo":"no",
+           "cronicas":"no","colectivo":"no","residencia":"chile"}}'
 """
 
 from __future__ import annotations
 
 import httpx
 
+from app.rag.config import get_settings
 from app.rag.query import query
 
 API_URL = "http://localhost:8000"
+API_KEY_HEADER = "X-API-Key"
 
 # Perfil curado sin PII (docs/CONTRACTS.md §4.1) sobre el molde base del catálogo.
 MOLDE_DEM = "POL320200071"
@@ -54,6 +65,12 @@ DEMO = [
 ]
 
 
+def _auth_headers() -> dict[str, str]:
+    """Header ``X-API-Key`` con ``API_KEY`` del ``.env`` (vacío = modo dev sin auth)."""
+    api_key = get_settings().api_key
+    return {API_KEY_HEADER: api_key} if api_key else {}
+
+
 def main() -> None:
     for i, item in enumerate(DEMO, start=1):
         print("=" * 72)
@@ -87,6 +104,7 @@ def paso_generacion() -> None:
         resp = httpx.post(
             f"{API_URL}/policy-recombine",
             json={"molde": MOLDE_DEM, "perfil": PERFIL_DEM},
+            headers=_auth_headers(),
             timeout=30,
         )
         resp.raise_for_status()
@@ -96,6 +114,10 @@ def paso_generacion() -> None:
         print(f"          ({type(exc).__name__})")
         return
     except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 401:
+            print("   ERROR 401: el API exige X-API-Key. Definí en el .env la misma")
+            print("          API_KEY que usa el API.")
+            return
         print(f"   ERROR {exc.response.status_code}: {exc.response.text}")
         return
 

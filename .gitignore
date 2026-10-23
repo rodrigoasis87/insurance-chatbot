@@ -20,8 +20,11 @@ wheels/
 !/data/evaluation/*.jsonl
 /data/evaluation/results/
 
-# Config autogenerada de Chainlit (UI #18): solo se versiona config.toml
-.chainlit/translations/
+# Config autogenerada de Chainlit (UI #18): se versiona config.toml y las
+# traducciones editadas (login con "Usuario" en vez de "Correo electrónico")
+.chainlit/translations/*
+!.chainlit/translations/es.json
+!.chainlit/translations/en-US.json
 
 # Locks temporales de LibreOffice (nunca commitear)
 .~lock.*#
