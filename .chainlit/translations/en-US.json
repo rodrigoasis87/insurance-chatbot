@@ -129,8 +129,8 @@
             "show": "Show history"
         },
         "settings": {
-            "title": "Settings panel",
-            "customize": "Customize your chat settings here"
+            "title": "Recombination panel",
+            "customize": "Set the mold and profile to generate the DEM draft"
         },
         "watermark": "LLMs can make mistakes. Check important info."
     },

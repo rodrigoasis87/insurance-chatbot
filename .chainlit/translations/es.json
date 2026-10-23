@@ -129,8 +129,8 @@
             "show": "Mostrar historial"
         },
         "settings": {
-            "title": "Panel de configuración",
-            "customize": "Personaliza la configuración de tu chat aquí"
+            "title": "Panel de recombinación",
+            "customize": "Configurá el molde y el perfil para generar el borrador DEM"
         },
         "watermark": "Los LLM pueden cometer errores. Verifica la información importante."
     },

@@ -12,9 +12,9 @@ Login: la UI pide usuario y contraseña con la pantalla de login de Chainlit
 para firmar la sesión (``uv run chainlit create-secret``).
 
 Consume el API HTTP (#16): POST /chat/stream (SSE) por defecto; la lógica RAG
-vive en ``app/rag/query.py`` y la expone el API (CONTRACTS §4). El selector
-lateral elige el LLM por petición (demo ambas modalidades, ADR-006): el valor
-viaja en el body (``provider``) sin reiniciar nada.
+vive en ``app/rag/query.py`` y la expone el API (CONTRACTS §4). El botón
+"Cambiar modelo" elige el LLM por petición (demo ambas modalidades, ADR-006):
+el valor viaja en el body (``provider``) sin reiniciar nada.
 
 Generación DEM (#58): el panel derecho configura molde + perfil curado (sin
 PII) y el botón "Generar borrador DEM" llama a ``POST /policy-recombine``
@@ -58,15 +58,23 @@ API_PUBLIC_URL = os.getenv("API_PUBLIC_URL", "http://localhost:8000").rstrip("/"
 AMBIENTE = """Asistente documental sobre el Depósito de Pólizas de la CMF.
 Respondo SOLO con citas de pólizas del corpus o fuentes web de mercado.
 Preguntas útiles: cobertura, exclusiones, plazos de denuncia, obligaciones.
-El selector **Modelo** (panel derecho) cambia el LLM en vivo: `ollama` (local)
-o `google` (Gemini por API key, demo).
 
-Para armar un borrador **DEM**: configurá molde y perfil en el panel derecho y
-presioná el botón **Generar borrador DEM**."""
+Con **Cambiar modelo** elegís el LLM (local o cloud) para esta conversación.
+Con **Generar borrador DEM** armás un borrador a partir del molde y perfil
+que configurás en el panel derecho."""
 
 DEFAULT_PROVIDER = "ollama"
 
 DEM_ACTION = "generar_dem"
+MODEL_ACTION = "cambiar_modelo"
+
+# provider -> etiqueta legible para el modal de selección de modelo.
+MODELOS: dict[str, str] = {
+    "ollama": "Ollama (local)",
+    "google": "Gemini (cloud)",
+    "openai": "OpenAI (cloud)",
+    "anthropic": "Anthropic (cloud)",
+}
 
 API_KEY_HEADER = "X-API-Key"
 
@@ -167,22 +175,13 @@ def _molde_inicial(moldes: list[dict]) -> str:
 
 
 def _dem_settings_inputs(moldes: list[dict]) -> list:
-    """Inputs del panel derecho: modelo + molde + 8 campos del perfil."""
+    """Inputs del panel derecho: solo molde base y los 8 campos del perfil DEM."""
     inputs = [
         Select(
-            id="provider",
-            label="Modelo (demo)",
-            values=["ollama", "openai", "anthropic", "google"],
-            initial_value=DEFAULT_PROVIDER,
-            description="ollama: local (ADR-001) · google: Gemini por API key "
-            "(ADR-006, la consulta sale del sistema)",
-        ),
-        Select(
             id="dem_molde",
-            label="Molde base (DEM)",
+            label="Molde base",
             items=_moldes_items(moldes),
             initial_value=_molde_inicial(moldes),
-            description="Póliza molde del catálogo (GET /policies).",
         ),
     ]
     for campo, label, opciones in opciones_perfil():
@@ -192,7 +191,6 @@ def _dem_settings_inputs(moldes: list[dict]) -> list:
                 label=label,
                 values=opciones,
                 initial_value=perfil_default()[campo],
-                description="Factor de rating curado, sin PII (ONTOLOGIA §8).",
             )
         )
     return inputs
@@ -223,18 +221,23 @@ async def on_chat_start() -> None:
         author="QuePlan",
         actions=[
             cl.Action(
+                name=MODEL_ACTION,
+                label="Cambiar modelo",
+                tooltip="Elegí el LLM (local o cloud) para esta conversación.",
+                payload={},
+            ),
+            cl.Action(
                 name=DEM_ACTION,
                 label="Generar borrador DEM",
                 tooltip="Molde + perfil (panel derecho) → borrador DEM (CONTRACTS §4.1).",
                 payload={},
-            )
+            ),
         ],
     ).send()
 
 
 @cl.on_settings_update
 async def on_settings_update(settings: dict) -> None:
-    cl.user_session.set("provider", settings.get("provider", DEFAULT_PROVIDER))
     cl.user_session.set("dem_molde", settings.get("dem_molde", MOLDE_DEFAULT))
     perfil = perfil_default()
     for campo, _, _ in opciones_perfil():
@@ -242,6 +245,27 @@ async def on_settings_update(settings: dict) -> None:
         if clave in settings:
             perfil[campo] = settings[clave]
     cl.user_session.set("dem_perfil", perfil)
+
+
+@cl.action_callback(MODEL_ACTION)
+async def on_cambiar_modelo(action: cl.Action) -> None:
+    """Abre un modal para elegir el LLM y lo deja activo en la sesión."""
+    opciones = [
+        cl.Action(name=f"modelo_{provider}", label=etiqueta, payload={})
+        for provider, etiqueta in MODELOS.items()
+    ]
+    res = await cl.AskActionMessage(
+        content="Elegí el modelo para esta conversación:",
+        actions=opciones,
+    ).send()
+    if res is None:
+        await cl.Message(content="No se cambió el modelo.").send()
+        return
+    provider = res["name"].removeprefix("modelo_")
+    cl.user_session.set("provider", provider)
+    await cl.Message(
+        content=f"Modelo activo: **{MODELOS.get(provider, provider)}**"
+    ).send()
 
 
 @cl.action_callback(DEM_ACTION)
