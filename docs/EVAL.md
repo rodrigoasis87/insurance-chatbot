@@ -1,8 +1,9 @@
 # Evaluación de calidad del RAG (célula G1)
 
-> **Estado**: runner implementado en `feature/ragas` (#19); corrida completa
-> aún pendiente por el costo del juez local. Este documento describe la
-> arquitectura completa del eval, con y sin RAGAS.
+> **Estado**: runner implementado (#19); **piloto de n=7 medido y re-scored**
+> (ver `docs/eval/PILOTO.md`); corrida completa (100 preguntas) aún pendiente
+> por el costo del juez local. Este documento describe la arquitectura completa
+> del eval, con y sin RAGAS.
 
 ## 1. Objetivo y alcance
 
@@ -177,8 +178,12 @@ versionado (los crudos siguen gitignored).
 
 ## 9. Estado actual y roadmap
 
-- Runner + lógica pura + 18 tests en `feature/ragas` (#19); `cita_ok` y juez
-  configurable cierran el DoD de #19.
+- **Piloto n=7 medido** (2026-10-19, juez `gemini-3.5-flash-lite`) y
+  **re-scored offline** tras el fix del validador de citas (issue #52): la
+  trazabilidad real es **7/7 filas y 26/26 citas verificables**. Resultados
+  autoritativos y comando de reproducción en `docs/eval/PILOTO.md`.
+- Runner + lógica pura + tests en `tests/test_rag_eval.py` (#19); `cita_ok`
+  acepta la página opcional y el formato numerado de cita (CONTRACTS §3).
 - 5 corridas piloto en `data/evaluation/results/` (la última: 30 casos con
   juez Gemini). Falta una **corrida completa** (100 preguntas) y su reporte.
 - Pendiente post-corrida: revisión humana del golden set (preguntas ambiguas

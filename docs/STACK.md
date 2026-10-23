@@ -18,9 +18,27 @@ El chatbot necesita responder sobre pólizas (RAG + retrieval), buscar noticias 
 internet y recombinar cláusulas. El enunciado sugiere LangChain, Haystack, Pinecone,
 Elasticsearch, OpenAI, etc. Requisitos del equipo:
 
-- **100% gratuito y local** (sin API keys de pago).
-- **Sin dependencia de modelos en la nube** (privacidad/costo).
+- **100% gratuito en el default** (sin API keys de pago) y **sin dependencia de
+  modelos en la nube**: la inferencia es **autoalojada** (self-hosted) — corre
+  en infraestructura que administramos nosotros y **no llega a ningún proveedor
+  de IA de terceros**.
 - Cumplir los entregables obligatorios (Agentes/Tools de LangChain, API, UI, Docker).
+
+### Modos de despliegue (misma arquitectura, distinto hosting)
+
+| Modo | El modelo corre en | La consulta sale de | Cuándo |
+|---|---|---|---|
+| On-premise | tu oficina / datacenter | nada | datos de clientes reales |
+| **Autoalojado en nube** | una VPS dedicada que administramos (con GPU) | nuestra VPS | demo, desarrollo, piloto |
+| API de terceros | datacenter del proveedor | hacia el proveedor | modo cloud opt-in (ADR-006) |
+
+> **Nota terminológica (2026-10-21, issue #52):** el ADR se escribió con el
+> término "local" para contrastar con "en la nube". Con la demo corriendo en
+> una VPS alquilada, la distinción precisa es **autoalojado (self-hosted)** vs
+> **API de terceros**: el claim "la consulta no sale del sistema" pasa a "la
+> consulta **no llega a ningún proveedor de IA de terceros**". La arquitectura,
+> el corpus, el modelo y las imágenes Docker son los mismos en los tres modos;
+> el hosting es lo que cambia.
 
 ## 2. Restricciones del entorno (baseline)
 
@@ -105,7 +123,7 @@ uv add duckduckgo-search pymupdf pandas tqdm
 
 | Opción | Por qué se descartó |
 |---|---|
-| OpenAI GPT / `text-embedding-3-small` | Requiere API key de pago; contradice "100% gratuito y local" |
+| OpenAI GPT / `text-embedding-3-small` | Requiere API key de pago; contradice "gratis en el default y autoalojado" |
 | Azure OpenAI | Setup administrativo adicional, mismo costo |
 | Haystack | Gran framework de ingest, pero el entregable pide LangChain Agents/Tools |
 | Pinecone | Cloud/plan pagado |

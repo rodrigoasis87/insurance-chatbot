@@ -235,6 +235,12 @@ Reglas:
 
 - Citas inline: interna `[fuente: POL320130223 · Art. 2]` coherente con
   `sources`; externa `[fuente web: <dominio>]` con su URL en `sources`.
+- **La página es opcional en la cita inline.** El modelo puede emitir
+  `[fuente: POL320130223 · Art. 2]`, `[fuente: POL320130223 · Art. 2 · pág. 14]`
+  o, en formato numerado, `[1] POL320130223 · Art. 2 · pág. 14: <texto>`. Las
+  tres son la **misma cita**: la página aporta trazabilidad, no cambia la
+  identidad de la fuente, y su presencia no vuelve inválida la cita. La
+  validación contra `sources` se hace siempre por `(poliza, articulo)`.
 - El LLM **solo cita** lo presente en el contexto invocado (chunks de la sección
   2 o resultados de `web_search`). Nunca inventa.
 - `sources` ordenadas: internas primero (score desc.), luego web. Sin duplicados.
