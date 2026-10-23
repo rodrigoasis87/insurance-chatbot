@@ -590,11 +590,15 @@ def test_api_hace_flush_de_la_observabilidad_al_apagar() -> None:
     assert called == [True]
 
 
-def test_api_acepta_session_id_opcional() -> None:
+def test_api_acepta_session_id_opcional(monkeypatch: pytest.MonkeyPatch) -> None:
     """El campo es opcional y aditivo: el body viejo sigue siendo valido."""
     from fastapi.testclient import TestClient
 
     from app.api import main as api_main
+
+    # Modo dev: este test no ejercita la auth (#44) y no debe depender de una
+    # API_KEY del .env del desarrollador.
+    monkeypatch.delenv("API_KEY", raising=False)
 
     capturado: dict[str, Any] = {}
 
@@ -602,7 +606,7 @@ def test_api_acepta_session_id_opcional() -> None:
         capturado.update(kwargs)
         return {"answer": "ok", "sources": []}
 
-    api_main.rag_query = fake_query  # type: ignore[assignment]
+    monkeypatch.setattr(api_main, "rag_query", fake_query)
     client = TestClient(api_main.app)
 
     res = client.post("/chat", json={"question": "¿plazo?"})
