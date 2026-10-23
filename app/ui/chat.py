@@ -225,7 +225,8 @@ async def on_chat_start() -> None:
             cl.Action(
                 name=DEM_ACTION,
                 label="Generar borrador DEM",
-                description="Molde + perfil (panel derecho) → borrador DEM (CONTRACTS §4.1).",
+                tooltip="Molde + perfil (panel derecho) → borrador DEM (CONTRACTS §4.1).",
+                payload={},
             )
         ],
     ).send()
