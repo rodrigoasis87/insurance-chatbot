@@ -48,7 +48,8 @@ producción se leen igual.
 | Resultados | `data/evaluation/results/<run_id>/` | `run.json` + `results.jsonl` + `summary.json` (gitignored) |
 | Reporte | `docs/eval/LATEST.md` | Resumen Markdown de la última corrida con `--report-doc` |
 | Umbral (ADR-004) | `docs/umbral_score.md` | Origen empírico de `UMBRAL_SCORE=0.60` (hard gate dentro del eval) |
-| Análisis de umbral | `scripts/analisis_umbral.py` | Distribución de scores de `search()` (44 queries, 3 clases) |
+| Análisis de umbral | `scripts/analisis_umbral.py` | Distribución de scores de `search()` (44 queries, 3 clases); `--mode hybrid` para el score fusionado (#42) |
+| A/B de retrieval | `scripts/ab_retrieval.py` | Denso vs. híbrido sobre el golden set sin LLM: recall@k, MRR, recall post-gate, abstención (#42) |
 | Tests | `tests/test_rag_eval.py` | 18 tests puros de la lógica de evaluación |
 | Dependencia | `pyproject.toml` → grupo `eval` | `ragas>=0.4.3` (se instala con `uv run --group eval`) |
 | Observabilidad | `app/observability/` + `docs/OBSERVABILITY.md` | Tracing en runtime con Langfuse (opcional, noop por defecto) |
@@ -148,8 +149,9 @@ necesario para repetirla o compararla:
 - `git_commit` del código evaluado y `corpus_sha256` de
   `data/processed/articulos.jsonl`
 - modelos: `generator_*` (Ollama), `judge_*`, `embedding_model`
-- estado del retrieval: `score_threshold` (hard gate ADR-004), `top_k`,
-  colección Qdrant con `points_count` y `status`
+- estado del retrieval: `retrieval_mode` (`dense`/`hybrid`, #42),
+  `score_threshold` (hard gate del modo activo, ADR-004), `top_k`, colección
+  Qdrant con `points_count` y `status`
 - muestra: `selected_question_ids`, `sample_seed`, `max_policy`,
   `behavior_filter`, `excluded_behaviors`, `no_web`, `metrics`
 

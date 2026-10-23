@@ -6,6 +6,10 @@ Contrato: docs/CONTRACTS.md seccion 2.
   embeddings (1024 con ``qwen3-embedding:0.6b``).
 * ``search()`` devuelve ``page_content``, ``metadata`` y ``score``, con a lo
   sumo un hit por ``(poliza, articulo)`` (colapsa la copia embebida).
+* ``RETRIEVAL_MODE`` (#42): ``dense`` (default) busca solo por embeddings;
+  ``hybrid`` fusiona el ranking denso con el lexico BM25 (``app.rag.bm25``)
+  via Reciprocal Rank Fusion (:func:`rrf_fuse`). El shape y el colapso no
+  cambian; en ``hybrid`` el ``score`` es el RRF normalizado a ``[0, 1]``.
 
 Ojo: con coseno, Qdrant devuelve un score de SIMILITUD (mas alto = mas
 parecido), no una distancia como Chroma.
@@ -13,6 +17,7 @@ parecido), no una distancia como Chroma.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from functools import lru_cache
 from typing import Any
 
@@ -20,7 +25,8 @@ from langchain_core.embeddings import Embeddings
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient, models
 
-from app.rag.config import get_settings
+from app.rag.bm25 import BM25Index, chunk_key, get_bm25_index
+from app.rag.config import SUPPORTED_RETRIEVAL_MODES, get_settings
 from app.rag.embeddings import get_embedding_dim, get_embeddings
 
 DISTANCE = models.Distance.COSINE
@@ -28,6 +34,18 @@ DISTANCE = models.Distance.COSINE
 # Campos de metadata con indice para filtrar rapido (recomendacion del EDA, #3).
 # langchain-qdrant guarda la metadata bajo la clave "metadata" del payload.
 KEYWORD_INDEX_FIELDS = ("poliza", "ramo", "titulo_canonico")
+
+# Constante k de RRF (Cormack, Clarke y Buettcher, SIGIR 2009): 60 es el valor
+# del paper y el default de Elasticsearch/OpenSearch/Qdrant.
+RRF_K = 60
+
+# En modo hibrido cada retriever aporta top_k * HYBRID_CANDIDATES_FACTOR
+# candidatos (20 con top_k=5): la fusion necesita listas mas profundas que el
+# top_k final para que un chunk bien rankeado por un solo retriever compita, y
+# el colapso por (poliza, articulo) descarta varios.
+HYBRID_CANDIDATES_FACTOR = 4
+
+SearchHit = dict[str, Any]
 
 
 @lru_cache(maxsize=1)
@@ -193,36 +211,191 @@ def colapsar_por_articulo(results: list[dict[str, Any]]) -> list[dict[str, Any]]
     return sorted(best.values(), key=lambda h: h["score"], reverse=True)
 
 
-def search(
-    query: str, top_k: int = 5, *, store: QdrantVectorStore | None = None
-) -> list[dict[str, Any]]:
-    """Busca los ``top_k`` articulos mas parecidos a ``query`` (similitud coseno).
+def rrf_fuse(
+    rankings: Sequence[Sequence[SearchHit]],
+    *,
+    k: int = RRF_K,
+    key: Callable[[SearchHit], Any] = lambda hit: chunk_key(hit["metadata"]),
+) -> list[SearchHit]:
+    """Fusiona rankings con Reciprocal Rank Fusion, con score normalizado.
+
+    Cada hit suma ``1 / (k + rank)`` por cada ranking en el que aparece (rank
+    1-based); se ignora el ``score`` original de cada retriever, que vive en
+    escalas incomparables (coseno vs. BM25). La suma se divide por el maximo
+    posible, ``len(rankings) / (k + 1)``, asi el score queda en ``(0, 1]``:
+    ``1.0`` = primero en todos los rankings; ``0.5`` (con 2 rankings) = primero
+    en uno solo y ausente del otro.
 
     Args:
-        query: pregunta en lenguaje natural.
-        top_k: cantidad de articulos unicos a devolver.
-        store: vector store a usar. Por defecto la coleccion ``polizas``.
+        rankings: listas de hits ``{page_content, metadata, score}`` ordenadas
+            de mejor a peor (p. ej. ``[denso, bm25]``). Pueden estar vacias.
+        k: constante de suavizado de RRF (``RRF_K``).
+        key: identidad del hit para reconocerlo entre rankings. Por defecto el
+            chunk ``(poliza, documento, articulo, chunk_index)``.
 
     Returns:
-        Lista ordenada por score descendente, con a lo sumo un hit por
-        ``(poliza, articulo)`` (ver :func:`colapsar_por_articulo`). Cada item:
-        ``{"page_content": str, "metadata": {...contrato 1.2...}, "score": float}``.
+        Hits unicos por ``key``, ordenados por score fusionado descendente (a
+        igual score, el mejor rank individual). Cada hit conserva el
+        ``page_content`` y la ``metadata`` de la primera lista donde aparece.
+
+    Raises:
+        ValueError: si ``k`` es negativo.
     """
-    if not query.strip():
-        raise ValueError("La consulta esta vacia.")
-    store = store or _get_search_store()
-    # Se piden el doble de candidatos: el colapso por (poliza, articulo) puede
-    # descartar varios, y asi se devuelven top_k articulos distintos igualmente.
-    results = store.similarity_search_with_score(query, k=top_k * 2)
-    hits = [
+    if k < 0:
+        raise ValueError("k de RRF debe ser >= 0")
+    if not rankings:
+        return []
+    max_score = len(rankings) / (k + 1)
+    fused: dict[Any, SearchHit] = {}
+    raw: dict[Any, float] = {}
+    best_rank: dict[Any, int] = {}
+    for ranking in rankings:
+        seen: set[Any] = set()
+        for rank, hit in enumerate(ranking, start=1):
+            hit_key = key(hit)
+            if hit_key in seen:  # el mismo chunk dos veces en una lista: cuenta una
+                continue
+            seen.add(hit_key)
+            raw[hit_key] = raw.get(hit_key, 0.0) + 1.0 / (k + rank)
+            best_rank[hit_key] = min(best_rank.get(hit_key, rank), rank)
+            fused.setdefault(
+                hit_key,
+                {"page_content": hit["page_content"], "metadata": hit["metadata"]},
+            )
+    ordered = sorted(fused, key=lambda hk: (-raw[hk], best_rank[hk]))
+    return [{**fused[hk], "score": raw[hk] / max_score} for hk in ordered]
+
+
+def _dense_hits(query: str, k: int, store: QdrantVectorStore) -> list[SearchHit]:
+    """Top ``k`` chunks por similitud coseno en Qdrant, sin colapsar."""
+    results = store.similarity_search_with_score(query, k=k)
+    return [
         {
             "page_content": doc.page_content,
             # langchain-qdrant agrega "_id" y "_collection_name": no son del contrato.
             "metadata": {
-                k: v for k, v in doc.metadata.items() if not k.startswith("_")
+                key: value
+                for key, value in doc.metadata.items()
+                if not key.startswith("_")
             },
             "score": float(score),
         }
         for doc, score in results
     ]
-    return colapsar_por_articulo(hits)[:top_k]
+
+
+def _lexical_hits(query: str, k: int, index: BM25Index) -> list[SearchHit]:
+    """Top ``k`` chunks por BM25 (score crudo), sin colapsar."""
+    return [
+        {
+            "page_content": hit.document.page_content,
+            "metadata": dict(hit.document.metadata),
+            "score": hit.score,
+        }
+        for hit in index.search(query, k)
+    ]
+
+
+def _resolve_mode(mode: str | None) -> str:
+    """Modo explicito o ``RETRIEVAL_MODE`` del entorno, validado."""
+    resolved = (mode or get_settings().retrieval_mode).strip().lower()
+    if resolved not in SUPPORTED_RETRIEVAL_MODES:
+        raise ValueError(
+            f"RETRIEVAL_MODE={resolved!r} no soportado; "
+            f"usa uno de {SUPPORTED_RETRIEVAL_MODES}."
+        )
+    return resolved
+
+
+def hybrid_search(
+    query: str,
+    top_k: int = 5,
+    *,
+    store: QdrantVectorStore,
+    bm25_index: BM25Index,
+    dense_floor: float | None,
+    k: int = RRF_K,
+) -> list[SearchHit]:
+    """Busqueda hibrida: ranking denso + ranking BM25 fusionados con RRF.
+
+    1. Qdrant devuelve los ``top_k * HYBRID_CANDIDATES_FACTOR`` chunks mas
+       parecidos (coseno) y BM25 otros tantos por coincidencia lexica.
+    2. **Piso semantico** (``dense_floor``): solo son elegibles los chunks del
+       ranking denso con coseno ``>= dense_floor``; los del ranking BM25 que no
+       esten entre ellos se descartan. El score RRF depende solo de posiciones
+       (es relativo a cada pregunta), asi que por si solo no distingue una
+       pregunta ajena al corpus de una del dominio: este piso conserva el hard
+       gate semantico de ADR-004 (ver docs/umbral_score.md §7). Con ``None``
+       no hay piso y la fusion es la union pura de ambos rankings.
+    3. :func:`rrf_fuse` (score en ``(0, 1]``) y colapso por ``(poliza, articulo)``.
+
+    Args:
+        query: pregunta en lenguaje natural (no vacia).
+        top_k: cantidad de articulos unicos a devolver.
+        store: vector store denso.
+        bm25_index: indice lexico.
+        dense_floor: coseno minimo para que un chunk sea elegible, o ``None``.
+        k: constante de RRF.
+    """
+    n_candidates = top_k * HYBRID_CANDIDATES_FACTOR
+    dense = _dense_hits(query, n_candidates, store)
+    lexical = _lexical_hits(query, n_candidates, bm25_index)
+    if dense_floor is not None:
+        dense = [hit for hit in dense if hit["score"] >= dense_floor]
+        eligible = {chunk_key(hit["metadata"]) for hit in dense}
+        lexical = [hit for hit in lexical if chunk_key(hit["metadata"]) in eligible]
+    return colapsar_por_articulo(rrf_fuse([dense, lexical], k=k))[:top_k]
+
+
+def search(
+    query: str,
+    top_k: int = 5,
+    *,
+    store: QdrantVectorStore | None = None,
+    mode: str | None = None,
+    bm25_index: BM25Index | None = None,
+) -> list[SearchHit]:
+    """Busca los ``top_k`` articulos mas relevantes para ``query``.
+
+    * ``dense`` (default): similitud coseno en Qdrant; ``score`` = coseno. El
+      hard gate ``UMBRAL_SCORE`` lo aplica despues ``query()``.
+    * ``hybrid``: ranking denso + BM25 fusionados con RRF
+      (:func:`hybrid_search`); ``score`` = RRF normalizado a ``(0, 1]``. Usa
+      ``UMBRAL_SCORE`` como piso semantico antes de fusionar, y ``query()``
+      aplica ``UMBRAL_SCORE_HYBRID`` sobre el score fusionado.
+
+    En ambos modos se colapsa por ``(poliza, articulo)`` despues de rankear, asi
+    que el contrato de CONTRACTS §2 no cambia.
+
+    Args:
+        query: pregunta en lenguaje natural.
+        top_k: cantidad de articulos unicos a devolver.
+        store: vector store a usar. Por defecto la coleccion ``polizas``.
+        mode: ``"dense"`` o ``"hybrid"``. Por defecto ``RETRIEVAL_MODE``.
+        bm25_index: indice lexico (solo ``hybrid``). Por defecto el de
+            ``data/processed/chunks.jsonl``, construido una vez por proceso.
+
+    Returns:
+        Lista ordenada por score descendente, con a lo sumo un hit por
+        ``(poliza, articulo)`` (ver :func:`colapsar_por_articulo`). Cada item:
+        ``{"page_content": str, "metadata": {...contrato 1.2...}, "score": float}``.
+
+    Raises:
+        ValueError: consulta vacia o modo no soportado.
+        FileNotFoundError: modo ``hybrid`` sin ``chunks.jsonl`` para BM25.
+    """
+    if not query.strip():
+        raise ValueError("La consulta esta vacia.")
+    resolved = _resolve_mode(mode)
+    store = store or _get_search_store()
+    if resolved == "hybrid":
+        return hybrid_search(
+            query,
+            top_k,
+            store=store,
+            bm25_index=bm25_index or get_bm25_index(),
+            dense_floor=get_settings().umbral_score_dense,
+        )
+    # Se piden el doble de candidatos: el colapso por (poliza, articulo) puede
+    # descartar varios, y asi se devuelven top_k articulos distintos igualmente.
+    return colapsar_por_articulo(_dense_hits(query, top_k * 2, store))[:top_k]
