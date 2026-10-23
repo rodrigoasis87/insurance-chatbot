@@ -50,6 +50,7 @@ producción se leen igual.
 | Umbral (ADR-004) | `docs/umbral_score.md` | Origen empírico de `UMBRAL_SCORE=0.60` (hard gate dentro del eval) |
 | Análisis de umbral | `scripts/analisis_umbral.py` | Distribución de scores de `search()` (44 queries, 3 clases); `--mode hybrid` para el score fusionado (#42) |
 | A/B de retrieval | `scripts/ab_retrieval.py` | Denso vs. híbrido sobre el golden set sin LLM: recall@k, MRR, recall post-gate, abstención (#42) |
+| A/B retrieval literal | `scripts/ab_retrieval_literal.py` | Denso vs. híbrido con metadata sobre set adversarial literal (códigos/artículos/términos raros); ver `docs/eval/RETRIEVAL_AB.md` |
 | Tests | `tests/test_rag_eval.py` | 18 tests puros de la lógica de evaluación |
 | Dependencia | `pyproject.toml` → grupo `eval` | `ragas>=0.4.3` (se instala con `uv run --group eval`) |
 | Observabilidad | `app/observability/` + `docs/OBSERVABILITY.md` | Tracing en runtime con Langfuse (opcional, noop por defecto) |
