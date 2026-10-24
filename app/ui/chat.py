@@ -12,28 +12,68 @@ Login: la UI pide usuario y contraseña con la pantalla de login de Chainlit
 para firmar la sesión (``uv run chainlit create-secret``).
 
 Consume el API HTTP (#16): POST /chat/stream (SSE) por defecto; la lógica RAG
-vive en ``app/rag/query.py`` y la expone el API (CONTRACTS §4). El selector
-lateral elige el LLM por petición (demo ambas modalidades, ADR-006): el valor
-viaja en el body (``provider``) sin reiniciar nada.
+vive en ``app/rag/query.py`` y la expone el API (CONTRACTS §4). El panel de
+configuraciones (ruedita del input) elige el LLM por petición (demo ambas
+modalidades, ADR-006): el valor viaja en el body (``provider``) sin reiniciar
+nada.
+
+Generación DEM (#58): el panel derecho configura molde + perfil curado (sin
+PII) y el botón "Generar borrador DEM" llama a ``POST /policy-recombine``
+(CONTRACTS §4.1). El PDF se sirve vía ``API_PUBLIC_URL`` (el navegador no
+alcanza ``API_URL=http://api:8000``, que es interno a docker).
 """
 
 import hmac
 import json
 import os
+import sys
+from pathlib import Path
 
 import chainlit as cl
 import httpx
-from chainlit.input_widget import Select
+from chainlit.input_widget import Select, Tab
+
+# Chainlit carga este módulo con ``spec_from_file_location`` y solo agrega su
+# propio directorio (app/ui) a ``sys.path``, no la raíz del proyecto. Como el
+# módulo importa ``app.ui.dem_form`` (y este ``app.generation``), insertamos la
+# raíz para que el paquete ``app`` sea importable en Docker y en dev local.
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from app.ui.dem_form import (
+    MOLDE_DEFAULT,
+    build_dem_body,
+    dem_pdf_name,
+    opciones_perfil,
+    perfil_default,
+    public_pdf_url,
+    render_dem_result,
+)
 
 API_URL = os.getenv("API_URL", "http://localhost:8000").rstrip("/")
+
+# URL del API alcanzable desde el navegador (para abrir el PDF generado).
+API_PUBLIC_URL = os.getenv("API_PUBLIC_URL", "http://localhost:8000").rstrip("/")
 
 AMBIENTE = """Asistente documental sobre el Depósito de Pólizas de la CMF.
 Respondo SOLO con citas de pólizas del corpus o fuentes web de mercado.
 Preguntas útiles: cobertura, exclusiones, plazos de denuncia, obligaciones.
-El selector **Modelo** (panel derecho) cambia el LLM en vivo: `ollama` (local)
-o `google` (Gemini por API key, demo)."""
+
+En el panel de **Configuraciones** (ruedita del input) elegís el modelo y
+configurás el molde y perfil. Con **Generar borrador DEM** armás el borrador."""
 
 DEFAULT_PROVIDER = "ollama"
+
+DEM_ACTION = "generar_dem"
+
+# etiqueta -> provider para el Select de modelo del panel de configuraciones.
+MODELOS_ITEMS: dict[str, str] = {
+    "Ollama (local)": "ollama",
+    "Gemini (cloud)": "google",
+    "OpenAI (cloud)": "openai",
+    "Anthropic (cloud)": "anthropic",
+}
 
 API_KEY_HEADER = "X-API-Key"
 
@@ -101,27 +141,164 @@ def _render_fuentes(sources: list[dict]) -> str:
     return "\n".join(partes)
 
 
+async def _fetch_moldes() -> list[dict]:
+    """Moldes disponibles desde ``GET /policies`` (público); ``[]`` si falla."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as http:
+            resp = await http.get(f"{API_URL}/policies")
+            resp.raise_for_status()
+            return resp.json()
+    except Exception:
+        return []
+
+
+def _moldes_items(moldes: list[dict]) -> dict[str, str]:
+    """``{label -> código}`` para el Select de molde; fallback al molde demo."""
+    items: dict[str, str] = {}
+    for m in moldes:
+        codigo = m.get("poliza")
+        if not codigo:
+            continue
+        extras = " · ".join(x for x in (m.get("ramo"), m.get("año")) if x)
+        label = f"{codigo} ({extras})" if extras else codigo
+        items[label] = codigo
+    return items or {MOLDE_DEFAULT: MOLDE_DEFAULT}
+
+
+def _molde_inicial(moldes: list[dict]) -> str:
+    """Molde inicial del Select: el demo si está disponible, si no el primero."""
+    codigos = [m.get("poliza") for m in moldes if m.get("poliza")]
+    if not codigos or MOLDE_DEFAULT in codigos:
+        return MOLDE_DEFAULT
+    return codigos[0]
+
+
+def _settings_inputs(moldes: list[dict]) -> list:
+    """Panel de configuraciones con dos solapas: Modelo y Recombinación."""
+    dem_inputs = [
+        Select(
+            id="dem_molde",
+            label="Molde base",
+            items=_moldes_items(moldes),
+            initial_value=_molde_inicial(moldes),
+        ),
+    ]
+    for campo, label, opciones in opciones_perfil():
+        dem_inputs.append(
+            Select(
+                id=f"dem_{campo}",
+                label=label,
+                values=opciones,
+                initial_value=perfil_default()[campo],
+            )
+        )
+    return [
+        Tab(
+            id="modelo",
+            label="Modelo",
+            inputs=[
+                Select(
+                    id="provider",
+                    label="Modelo",
+                    items=MODELOS_ITEMS,
+                    initial_value=DEFAULT_PROVIDER,
+                ),
+            ],
+        ),
+        Tab(
+            id="recombinacion",
+            label="Recombinación",
+            inputs=dem_inputs,
+        ),
+    ]
+
+
+def _detalle_error(resp: httpx.Response) -> str:
+    """Extrae el ``detail`` del error del API (string o lista de pydantic)."""
+    try:
+        cuerpo = resp.json()
+    except Exception:
+        return resp.text.strip() or f"status {resp.status_code}"
+    detalle = cuerpo.get("detail", cuerpo)
+    if isinstance(detalle, list):
+        partes = [str(d.get("msg", d)) for d in detalle if isinstance(d, dict)]
+        return ", ".join(partes) if partes else "validación"
+    return str(detalle)
+
+
 @cl.on_chat_start
 async def on_chat_start() -> None:
+    moldes = await _fetch_moldes()
     cl.user_session.set("provider", DEFAULT_PROVIDER)
-    await cl.ChatSettings(
-        inputs=[
-            Select(
-                id="provider",
-                label="Modelo (demo)",
-                values=["ollama", "openai", "anthropic", "google"],
-                initial_value=DEFAULT_PROVIDER,
-                description="ollama: local (ADR-001) · google: Gemini por API key "
-                "(ADR-006, la consulta sale del sistema)",
-            )
-        ]
+    cl.user_session.set("dem_molde", _molde_inicial(moldes))
+    cl.user_session.set("dem_perfil", perfil_default())
+    await cl.ChatSettings(inputs=_settings_inputs(moldes)).send()
+    await cl.Message(
+        content=AMBIENTE,
+        author="QuePlan",
+        actions=[
+            cl.Action(
+                name=DEM_ACTION,
+                label="Generar borrador DEM",
+                tooltip="Molde + perfil (panel de configuraciones) → borrador DEM (CONTRACTS §4.1).",
+                payload={},
+            ),
+        ],
     ).send()
-    await cl.Message(content=AMBIENTE, author="QuePlan").send()
 
 
 @cl.on_settings_update
 async def on_settings_update(settings: dict) -> None:
     cl.user_session.set("provider", settings.get("provider", DEFAULT_PROVIDER))
+    cl.user_session.set("dem_molde", settings.get("dem_molde", MOLDE_DEFAULT))
+    perfil = perfil_default()
+    for campo, _, _ in opciones_perfil():
+        clave = f"dem_{campo}"
+        if clave in settings:
+            perfil[campo] = settings[clave]
+    cl.user_session.set("dem_perfil", perfil)
+
+
+@cl.action_callback(DEM_ACTION)
+async def on_generar_dem(action: cl.Action) -> None:
+    molde = cl.user_session.get("dem_molde", MOLDE_DEFAULT)
+    perfil = cl.user_session.get("dem_perfil", perfil_default())
+    try:
+        async with httpx.AsyncClient(timeout=60) as http:
+            resp = await http.post(
+                f"{API_URL}/policy-recombine",
+                json=build_dem_body(molde, perfil),
+                headers=_auth_headers(),
+            )
+        if resp.status_code == 401:
+            await cl.Message(content=ERROR_401).send()
+            return
+        if resp.status_code in (400, 404, 422):
+            await cl.Message(
+                content=f"Error al generar el DEM: {_detalle_error(resp)}"
+            ).send()
+            return
+        resp.raise_for_status()
+        payload = resp.json()
+    except Exception as exc:  # la UI nunca debe caer por un error interno
+        await cl.Message(
+            content=f"Ocurrió un error al generar el DEM: {type(exc).__name__} "
+            f"({exc}). ¿El API está levantado?"
+        ).send()
+        return
+
+    pdf_url = public_pdf_url(API_PUBLIC_URL, payload.get("pdf_url", ""))
+    codigo = payload.get("codigo", "DEM")
+    await cl.ElementSidebar.set_title(f"Borrador {codigo}")
+    await cl.ElementSidebar.set_elements(
+        [
+            cl.Text(name="detalle", content=render_dem_result(payload), display="side"),
+            cl.Pdf(name=dem_pdf_name(payload), url=pdf_url, display="side"),
+        ]
+    )
+    await cl.Message(
+        content=f"Borrador DEM generado: `{codigo}` (ver panel lateral)."
+    ).send()
 
 
 @cl.on_message

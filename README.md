@@ -362,6 +362,18 @@ UI_USERNAME=admin             # vacío = admin
 UI_PASSWORD=admin             # vacío = admin
 ```
 
+### Generación DEM desde la UI
+
+El botón **"Generar borrador DEM"** de la UI usa el molde y perfil del panel
+derecho para llamar a `POST /policy-recombine` y muestra el PDF inline. El PDF
+se sirve desde el API, y el navegador lo abre vía `API_PUBLIC_URL` (default
+`http://localhost:8000`), porque `API_URL=http://api:8000` solo es interno a
+docker. Para accesos remotos ajustala:
+
+```bash
+API_PUBLIC_URL=http://localhost:8000   # alcanzable desde el navegador
+```
+
 ## Documentación
 
 - `docs/ARCHITECTURE.md` — arquitectura del MVP y post-MVP, con ADRs y estado por célula.
@@ -385,6 +397,7 @@ UI_PASSWORD=admin             # vacío = admin
 - [x] Ops demo: `docker compose` único (Qdrant + Ollama + API + UI) — #21
 - [x] Demo ext: streaming SSE (`/chat/stream`) + LLM intercambiable con toggle en la UI (local ↔ cloud) — ADR-006
 - [x] Generación DEM (recombinación demo v0): CLI + `POST /policy-recombine` + PDF borrador — #36
+- [x] Generación DEM desde la UI: molde + perfil en el panel derecho, botón y preview del PDF inline — #58
 - [x] Observabilidad en runtime: tracing con Langfuse (opcional, noop por defecto) + overlay self-host — #48
 - [x] Auth mínima del API: header `X-API-Key` en `/chat`, `/chat/stream` y `/policy-recombine`; `/health` público — #44
 - [x] QA/eval: golden set de 100 preguntas + RAGAS + `cita_ok` propio; **piloto n=7 medido y re-scored** (`docs/eval/PILOTO.md`) — #19, #20
