@@ -18,7 +18,7 @@
     },
     "auth": {
         "login": {
-            "title": "Inicia sesión para acceder a la aplicación",
+            "title": "Insurance Policy Chatbot",
             "form": {
                 "email": {
                     "label": "Usuario",
@@ -129,8 +129,8 @@
             "show": "Mostrar historial"
         },
         "settings": {
-            "title": "Panel de configuración",
-            "customize": "Personaliza la configuración de tu chat aquí"
+            "title": "Configuraciones",
+            "customize": "Elegí el modelo y configurá el molde y perfil para el borrador DEM"
         },
         "watermark": "Los LLM pueden cometer errores. Verifica la información importante."
     },

@@ -66,6 +66,9 @@ services:
       - "8001:8000"
     environment:
       API_URL: http://api:8000
+      # URL del API alcanzable desde el navegador para abrir el PDF DEM (#58).
+      # El browser no resuelve "api:8000" (interno a docker); default = host local.
+      API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:8000}
       # La UI manda la misma key al API en el header X-API-Key (#44).
       API_KEY: ${API_KEY:-}
       # Login de la UI: Chainlit no arranca sin CHAINLIT_AUTH_SECRET (firma la
