@@ -18,7 +18,7 @@
     },
     "auth": {
         "login": {
-            "title": "Inicia sesión para acceder a la aplicación",
+            "title": "Insurance Policy Chatbot",
             "form": {
                 "email": {
                     "label": "Usuario",
