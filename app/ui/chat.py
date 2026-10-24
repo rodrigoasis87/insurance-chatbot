@@ -288,11 +288,16 @@ async def on_generar_dem(action: cl.Action) -> None:
         return
 
     pdf_url = public_pdf_url(API_PUBLIC_URL, payload.get("pdf_url", ""))
+    codigo = payload.get("codigo", "DEM")
+    await cl.ElementSidebar.set_title(f"Borrador {codigo}")
+    await cl.ElementSidebar.set_elements(
+        [
+            cl.Text(name="detalle", content=render_dem_result(payload), display="side"),
+            cl.Pdf(name=dem_pdf_name(payload), url=pdf_url, display="side"),
+        ]
+    )
     await cl.Message(
-        content=render_dem_result(payload),
-        elements=[
-            cl.Pdf(name=dem_pdf_name(payload), url=pdf_url, display="inline")
-        ],
+        content=f"Borrador DEM generado: `{codigo}` (ver panel lateral)."
     ).send()
 
 
